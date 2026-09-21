@@ -25,3 +25,13 @@ Plataforma SaaS de Gestión de Activos Físicos y Mantenimiento Operacional orie
 │   └── shared/               # DTOs, Tipos TypeScript compartidos, Esquemas de Zod
 ├── docker-compose.yml        # Orquestación de servicios locales (API, Web, PostgreSQL, Redis)
 └── README.md
+
+## Technical Stack Constraints & Known Pitfalls
+
+### Monorepo & Dependencies
+- **Node.js Native Modules**: Evitar librerías nativas que requieran compilación C++ en Windows (`node-gyp`). Usar equivalentes JS puros (ej. `bcryptjs` en vez de `bcrypt`).
+- **Prisma Location**: `prisma` y `@prisma/client` deben administrarse directamente dentro del workspace `apps/api` para evitar conflictos de resolución con el `node_modules` raíz del monorepo.
+
+### Frontend & Build System (React 19 + Vite)
+- **TypeScript Paths**: No declarar `baseUrl` en `tsconfig.json`. Mapear directamente alias usando `"paths": { "@/*": ["./src/*"] }`.
+- **Tailwind CSS v4 Integration**: Utilizar el plugin `@tailwindcss/postcss` en `postcss.config.js` (formato CommonJS `module.exports`) en lugar del plugin directo de `tailwindcss`.
