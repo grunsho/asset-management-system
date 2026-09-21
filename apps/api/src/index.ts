@@ -3,6 +3,7 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth-routes'
+import assetRoutes from './routes/asset-routes'
 
 dotenv.config()
 
@@ -23,8 +24,9 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// Rutas de Autenticación
+// Registrar rutas de la API
 app.use('/api/v1/auth', authRoutes)
+app.use('/api/v1/assets', assetRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 API corriendo en http://localhost:${PORT}`)
