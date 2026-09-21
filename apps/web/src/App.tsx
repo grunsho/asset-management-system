@@ -1,21 +1,38 @@
-export function App() {
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { LoginPage } from './pages/LoginPage'
+
+// Vista de Dashboard temporal para probar autenticación
+function DashboardPlaceholder() {
   return (
-    <div className='min-h-screen flex items-center justify-center bg-slate-900 text-white'>
-      <div className='p-8 max-w-md bg-slate-800 rounded-xl shadow-2xl border border-slate-700 text-center'>
-        <div className='inline-block p-3 bg-sky-500/10 text-sky-400 rounded-lg mb-4'>
-          ⚙️
-        </div>
-        <h1 className='text-2xl font-bold tracking-tight mb-2'>
-          Physical Asset Management
-        </h1>
+    <div className='min-h-screen bg-slate-950 text-white p-8'>
+      <div className='max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6'>
+        <h1 className='text-2xl font-bold mb-2'>🚀 Dashboard de Activos</h1>
         <p className='text-slate-400 text-sm mb-6'>
-          Plataforma de gestión de activos y monitoreo en tiempo real.
+          Sesión iniciada con éxito. Listo para cargar la tabla de activos en
+          tiempo real.
         </p>
-        <div className='inline-flex items-center gap-2 text-xs font-mono bg-slate-900 px-3 py-1.5 rounded-md border border-slate-700 text-emerald-400'>
-          <span className='w-2 h-2 rounded-full bg-emerald-500 animate-pulse'></span>
-          Frontend Inicializado (React 19 + Tailwind)
-        </div>
       </div>
     </div>
+  )
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path='/login' element={<LoginPage />} />
+          {/* Rutas Protegidas por Autenticación y Permisos RBAC */}
+          <Route element={<ProtectedRoute requiredPermission='ASSET_READ' />}>
+            <Route path='/dashboard' element={<DashboardPlaceholder />} />
+          </Route>
+
+          {/* Redirección por defecto */}
+          <Route path='*' element={<Navigate to='/dashboard' replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }

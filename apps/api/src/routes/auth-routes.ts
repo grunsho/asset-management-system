@@ -16,7 +16,7 @@ const router = Router()
 
 // Esquema de validación para login usando Zod
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  email: z.email('Email inválido'),
   password: z.string().min(1, 'La contraseña es requerida'),
 })
 
@@ -47,7 +47,7 @@ router.post('/login', async (req, res) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
     })
 
@@ -66,8 +66,60 @@ router.post('/login', async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.issues })
     }
+    console.error('Error detallado durante el login:', error)
     res.status(500).json({ error: 'Error en el servidor durante el login' })
   }
+})
+
+// POST /api/v1/auth/refresh (Renovación de Access Token vía Cookie)
+router.post('/refresh', async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken
+
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token no proporcionado' })
+    }
+
+    const payload = verifyRefreshToken(refreshToken) as {
+      userId: string
+      role: string
+    }
+
+    if (!payload) {
+      return res
+        .status(403)
+        .json({ error: 'Refresh token inválido o expirado' })
+    }
+
+    // Verificar que el usuario siga activo
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { role: true },
+    })
+
+    if (!user || !user.isActive) {
+      return res.status(403).json({ error: 'Usuario inactivo o no encontrado' })
+    }
+
+    const newAccessToken = generateAccessToken({
+      userId: user.id,
+      role: user.role.name,
+    })
+
+    res.json({ accessToken: newAccessToken })
+  } catch (error) {
+    res.status(403).json({ error: 'Error al procesar el token de refresco' })
+  }
+})
+
+// POST /api/v1/auth/logout (Limpiar cookie)
+router.post('/logout', (_req, res) => {
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  })
+  res.json({ message: 'Sesión cerrada con éxito' })
 })
 
 // GET /api/v1/auth/me
