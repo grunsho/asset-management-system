@@ -1,5 +1,6 @@
 import { AssetStatus } from '@prisma/client'
 import { prisma } from '../lib/prisma'
+import { getIO } from '../lib/socket'
 
 export interface CreateAssetInput {
   tagCode: string
@@ -81,7 +82,7 @@ export class AssetService {
     reason,
   }: UpdateAssetStatusInput) {
     // Usamos una transacciónde Prisma para garantizar atomicidad
-    return prisma.$transaction(async (tx) => {
+    const updatedAsset = await prisma.$transaction(async (tx) => {
       const currentAsset = await tx.asset.findUnique({
         where: { id: assetId },
       })
@@ -113,6 +114,19 @@ export class AssetService {
 
       return updatedAsset
     })
+
+    // Emitir evento en tiempo real a los clientes conectados
+    try {
+      getIO().emit('asset:status_changed', {
+        assetId: updatedAsset.id,
+        newStatus: updatedAsset.status,
+        updatedAt: updatedAsset.updatedAt,
+      })
+    } catch (error) {
+      console.error('Error emitiendo evento de WebSocket:', error)
+    }
+
+    return updatedAsset
   }
 
   // 4. Obtener historial de auditoría de un activo

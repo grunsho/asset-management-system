@@ -1,14 +1,21 @@
 import express from 'express'
+import { createServer } from 'http'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
+
 import authRoutes from './routes/auth-routes'
 import assetRoutes from './routes/asset-routes'
+import { initSocket } from './lib/socket'
 
 dotenv.config()
 
 const app = express()
+const httpServer = createServer(app)
 const PORT = process.env.PORT || 4000
+
+// Inicializar WebSockets
+initSocket(httpServer)
 
 app.use(
   cors({
@@ -28,6 +35,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/assets', assetRoutes)
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 API corriendo en http://localhost:${PORT}`)
+  console.log(`⚡ Servidor WebSocket listo`)
 })
