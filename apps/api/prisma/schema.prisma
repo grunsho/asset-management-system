@@ -1,0 +1,134 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// MÓDULO: AUTENTICACIÓN Y RBAC
+// ==========================================
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique @db.VarChar(255)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  firstName    String     @map("first_name") @db.VarChar(100)
+  lastName     String     @map("last_name") @db.VarChar(100)
+  isActive     Boolean    @default(true) @map("is_active")
+  roleId       String     @map("role_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  role      Role       @relation(fields: [roleId], references: [id])
+  assetLogs AssetLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        RoleName @unique
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+enum RoleName {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ==========================================
+// MÓDULO: CORE DE ACTIVOS Y AUDITORÍA
+// ==========================================
+
+enum AssetStatus {
+  OPERATIONAL
+  IN_MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  assets Asset[]
+
+  @@map("categories")
+}
+
+model Location {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  assets Asset[]
+
+  @@map("locations")
+}
+
+model Asset {
+  id           String      @id @default(uuid()) @db.Uuid
+  tagCode      String      @unique @map("tag_code") @db.VarChar(50)
+  name         String      @db.VarChar(150)
+  serialNumber String?     @map("serial_number") @db.VarChar(100)
+  status       AssetStatus @default(OPERATIONAL)
+  categoryId   String      @map("category_id") @db.Uuid
+  locationId   String      @map("location_id") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  category Category   @relation(fields: [categoryId], references: [id])
+  location Location   @relation(fields: [locationId], references: [id])
+  logs     AssetLog[]
+
+  @@map("assets")
+}
+
+model AssetLog {
+  id             String      @id @default(uuid()) @db.Uuid
+  assetId        String      @map("asset_id") @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  previousStatus AssetStatus @map("previous_status")
+  newStatus      AssetStatus @map("new_status")
+  reason         String?     @db.Text
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("asset_logs")
+}
