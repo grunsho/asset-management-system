@@ -3,6 +3,8 @@ import { api } from '../lib/api'
 import { socket } from '../lib/socket'
 import { useAuth } from '../context/AuthContext'
 import { AssetModal } from '../components/AssetModal'
+import { Download } from 'lucide-react'
+import { AssetCharts } from '../components/AssetCharts'
 
 // Interfaces alineadas con el esquema Prisma / REST API
 export interface Category {
@@ -15,12 +17,14 @@ export interface Location {
   name: string
 }
 
+export type AssetStatus = 'OPERATIONAL' | 'IN_MAINTENANCE' | 'OUT_OF_SERVICE'
+
 export interface Asset {
   id: string
   tagCode: string
   name: string
   serialNumber?: string | null
-  status: 'OPERATIONAL' | 'MAINTENANCE' | 'CRITICAL' | 'DECOMMISSIONED'
+  status: AssetStatus
   categoryId: string
   locationId: string
   category?: Category
@@ -112,11 +116,10 @@ export const DashboardPage: React.FC = () => {
   }
 
   const getStatusBadge = (status: Asset['status']) => {
-    const styles = {
+    const styles: Record<AssetStatus, string> = {
       OPERATIONAL: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      MAINTENANCE: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      CRITICAL: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-      DECOMMISSIONED: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+      IN_MAINTENANCE: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+      OUT_OF_SERVICE: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
     }
     return (
       <span
@@ -125,6 +128,29 @@ export const DashboardPage: React.FC = () => {
         {status}
       </span>
     )
+  }
+  const handleExportCSV = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/v1/reports/export?format=csv', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) throw new Error('Error al descargar el archivo')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inventario_activos_${Date.now()}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch (error) {
+      console.error('Error al exportar CSV:', error)
+    }
   }
 
   return (
@@ -163,8 +189,18 @@ export const DashboardPage: React.FC = () => {
 
       {/* Main Content */}
       <main className='flex-1 max-w-7xl w-full mx-auto p-6'>
+        <div className="flex justify-between items-center">
+      <h1 className="text-2xl font-bold text-white">Dashboard de Activos</h1>
+      <button
+        onClick={handleExportCSV}
+        className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg border border-slate-700 transition-colors"
+      >
+        <Download className="w-4 h-4" />
+        Exportar CSV
+      </button>
+    </div>
         {/* KPI Cards */}
-        <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-6'>
+        <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 mb-6'>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
             <p className='text-xs font-medium text-slate-400 uppercase'>
               Total Activos
@@ -186,15 +222,15 @@ export const DashboardPage: React.FC = () => {
               En Mantenimiento
             </p>
             <p className='text-2xl font-bold text-amber-400 mt-1'>
-              {safeAssets.filter((a) => a.status === 'MAINTENANCE').length}
+              {safeAssets.filter((a) => a.status === 'IN_MAINTENANCE').length}
             </p>
           </div>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
             <p className='text-xs font-medium text-slate-400 uppercase'>
-              Estado Crítico
+              Fuera de Servicio
             </p>
             <p className='text-2xl font-bold text-rose-400 mt-1'>
-              {safeAssets.filter((a) => a.status === 'CRITICAL').length}
+              {safeAssets.filter((a) => a.status === 'OUT_OF_SERVICE').length}
             </p>
           </div>
         </div>

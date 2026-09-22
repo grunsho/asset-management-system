@@ -24,18 +24,20 @@ export const authenticateToken = async (
   try {
     const decoded = verifyAccessToken(token)
 
-    // Obtener los permisos actualizados del rol del usuario desde la BD
-    const userRole = await prisma.role.findUnique({
-      where: { name: decoded.role as any },
-      include: {
-        permissions: {
-          include: { permission: true },
-        },
-      },
-    })
+    let permissions = decoded.permissions || []
 
-    const permissions =
-      userRole?.permissions.map((p) => p.permission.code) || []
+    if (!permissions.length) {
+      const userRole = await prisma.role.findUnique({
+        where: { name: decoded.role as any },
+        include: {
+          permissions: {
+            include: { permission: true },
+          },
+        },
+      })
+
+      permissions = userRole?.permissions.map((p) => p.permission.code) || []
+    }
 
     req.user = {
       ...decoded,

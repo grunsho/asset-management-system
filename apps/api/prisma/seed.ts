@@ -14,6 +14,10 @@ async function main() {
     },
     { code: 'ASSET_CREATE', description: 'Permite crear nuevos activos' },
     {
+      code: 'ASSET_UPDATE',
+      description: 'Permite editar información de activos',
+    },
+    {
       code: 'ASSET_UPDATE_STATUS',
       description: 'Permite actualizar el estado de un activo',
     },
@@ -62,11 +66,12 @@ async function main() {
     [RoleName.ADMIN]: [
       'ASSET_READ',
       'ASSET_CREATE',
+      'ASSET_UPDATE',
       'ASSET_UPDATE_STATUS',
       'ASSET_DELETE',
       'USER_MANAGE',
     ],
-    [RoleName.OPERATOR]: ['ASSET_READ', 'ASSET_UPDATE_STATUS'],
+    [RoleName.OPERATOR]: ['ASSET_READ', 'ASSET_UPDATE', 'ASSET_UPDATE_STATUS'],
     [RoleName.VIEWER]: ['ASSET_READ'],
   }
 

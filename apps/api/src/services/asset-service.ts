@@ -17,6 +17,15 @@ export interface UpdateAssetStatusInput {
   reason?: string
 }
 
+export interface UpdateAssetInput {
+  id: string
+  tagCode?: string
+  name?: string
+  serialNumber?: string | null
+  categoryId?: string
+  locationId?: string
+}
+
 export class AssetService {
   // 1. Obtener activos paginados con filtros
   static async getAssets(params: {
@@ -65,13 +74,54 @@ export class AssetService {
 
   // 2. Crear un nuevo activo
   static async createAsset(data: CreateAssetInput) {
-    return prisma.asset.create({
+    const createdAsset = await prisma.asset.create({
       data,
       include: {
         category: true,
         location: true,
       },
     })
+
+    try {
+      getIO().emit('asset:created', createdAsset)
+    } catch (error) {
+      console.error('Error emitiendo evento WebSocket de creación:', error)
+    }
+
+    return createdAsset
+  }
+
+  static async updateAsset(data: UpdateAssetInput) {
+    const existingAsset = await prisma.asset.findUnique({
+      where: { id: data.id },
+    })
+
+    if (!existingAsset) {
+      throw new Error('NOT_FOUND')
+    }
+
+    const updatedAsset = await prisma.asset.update({
+      where: { id: data.id },
+      data: {
+        tagCode: data.tagCode,
+        name: data.name,
+        serialNumber: data.serialNumber ?? undefined,
+        categoryId: data.categoryId,
+        locationId: data.locationId,
+      },
+      include: {
+        category: true,
+        location: true,
+      },
+    })
+
+    try {
+      getIO().emit('asset:updated', updatedAsset)
+    } catch (error) {
+      console.error('Error emitiendo evento WebSocket de actualización:', error)
+    }
+
+    return updatedAsset
   }
 
   // 3. Transición de Estado con Log de Auditoría Transaccional
@@ -117,11 +167,14 @@ export class AssetService {
 
     // Emitir evento en tiempo real a los clientes conectados
     try {
-      getIO().emit('asset:status_changed', {
-        assetId: updatedAsset.id,
-        newStatus: updatedAsset.status,
+      const payload = {
+        id: updatedAsset.id,
+        status: updatedAsset.status,
         updatedAt: updatedAsset.updatedAt,
-      })
+      }
+
+      getIO().emit('asset:updated', payload)
+      getIO().emit('asset:status_changed', payload)
     } catch (error) {
       console.error('Error emitiendo evento de WebSocket:', error)
     }

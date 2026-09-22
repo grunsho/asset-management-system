@@ -7,6 +7,7 @@ const JWT_REFRESH_SECRET =
 export interface TokenPayload {
   userId: string
   role: string
+  permissions?: string[]
 }
 
 export const generateAccessToken = (payload: TokenPayload): string => {

@@ -54,17 +54,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const { data } = await api.post('/auth/login', { email, password })
     setAccessToken(data.accessToken)
     setUser(data.user)
-
-    // Obtener los permisos del usuario
-    const meRes = await api.get('/auth/me')
-    setPermissions(meRes.data.permissions)
+    setPermissions(data.permissions || [])
   }
 
-  const logout = () => {
-    setAccessToken(null)
-    setUser(null)
-    setPermissions([])
-    window.location.href = '/login'
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch (error) {
+      console.warn('Logout backend falló, limpiando sesión localmente', error)
+    } finally {
+      setAccessToken(null)
+      setUser(null)
+      setPermissions([])
+      window.location.href = '/login'
+    }
   }
 
   const hasPermission = (permission: string): boolean => {

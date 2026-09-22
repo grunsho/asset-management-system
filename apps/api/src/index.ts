@@ -8,6 +8,7 @@ import authRoutes from './routes/auth-routes'
 import assetRoutes from './routes/asset-routes'
 import categoryRoutes from './routes/category-routes'
 import locationRoutes from './routes/location-routes'
+import reportRoutes from './routes/report-routes'
 import { initSocket } from './lib/socket'
 
 dotenv.config()
@@ -38,6 +39,7 @@ app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/assets', assetRoutes)
 app.use('/api/v1/categories', categoryRoutes)
 app.use('/api/v1/locations', locationRoutes)
+app.use('/api/v1/reports', reportRoutes)
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 API corriendo en http://localhost:${PORT}`)

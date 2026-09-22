@@ -20,6 +20,12 @@ const loginSchema = z.object({
   password: z.string().min(1, 'La contraseña es requerida'),
 })
 
+const getPermissionCodes = (role: {
+  permissions?: Array<{ permission: { code: string } }> | null
+}): string[] => {
+  return role.permissions?.map(({ permission }) => permission.code) || []
+}
+
 // POST /api/v1/auth/login
 router.post('/login', async (req, res) => {
   try {
@@ -27,7 +33,15 @@ router.post('/login', async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { role: true },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: { permission: true },
+            },
+          },
+        },
+      },
     })
 
     if (!user || !user.isActive) {
@@ -39,7 +53,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' })
     }
 
-    const payload = { userId: user.id, role: user.role.name }
+    const permissions = getPermissionCodes(user.role)
+    const payload = {
+      userId: user.id,
+      role: user.role.name,
+      permissions,
+    }
     const accessToken = generateAccessToken(payload)
     const refreshToken = generateRefreshToken(payload)
 
@@ -48,12 +67,13 @@ router.post('/login', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
-    res.json({
+    return res.json({
       message: 'Autenticación exitosa',
       accessToken,
+      permissions,
       user: {
         id: user.id,
         email: user.email,
@@ -67,7 +87,9 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: error.issues })
     }
     console.error('Error detallado durante el login:', error)
-    res.status(500).json({ error: 'Error en el servidor durante el login' })
+    return res
+      .status(500)
+      .json({ error: 'Error en el servidor durante el login' })
   }
 })
 
@@ -94,21 +116,33 @@ router.post('/refresh', async (req, res) => {
     // Verificar que el usuario siga activo
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      include: { role: true },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: { permission: true },
+            },
+          },
+        },
+      },
     })
 
     if (!user || !user.isActive) {
       return res.status(403).json({ error: 'Usuario inactivo o no encontrado' })
     }
 
+    const permissions = getPermissionCodes(user.role)
     const newAccessToken = generateAccessToken({
       userId: user.id,
       role: user.role.name,
+      permissions,
     })
 
-    res.json({ accessToken: newAccessToken })
+    return res.json({ accessToken: newAccessToken, permissions })
   } catch (error) {
-    res.status(403).json({ error: 'Error al procesar el token de refresco' })
+    return res
+      .status(403)
+      .json({ error: 'Error al procesar el token de refresco' })
   }
 })
 

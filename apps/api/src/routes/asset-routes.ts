@@ -26,8 +26,20 @@ const updateStatusSchema = z.object({
   status: z.enum(AssetStatus, {
     error: 'Estado de activo no válido',
   }),
-  reason: z.string().optional,
+  reason: z.string().optional(),
 })
+
+const updateAssetSchema = z
+  .object({
+    tagCode: z.string().min(3, 'El código TAG es requerido').optional(),
+    name: z.string().min(2, 'El nombre del activo es requerido').optional(),
+    serialNumber: z.string().nullable().optional(),
+    categoryId: z.string().uuid('ID de categoría inválido').optional(),
+    locationId: z.string().uuid('ID de ubicación inválido').optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'Debe enviar al menos un campo para actualizar',
+  })
 
 // GET /api/v1/assets - Listar activos
 router.get('/', checkPermission('ASSET_READ'), async (req, res) => {
@@ -59,6 +71,36 @@ router.post('/', checkPermission('ASSET_CREATE'), async (req, res) => {
     res.status(500).json({ error: 'Error al crear el activo' })
   }
 })
+
+// PUT /api/v1/assets/:id - Actualizar un activo
+router.put(
+  '/:id',
+  checkPermission('ASSET_UPDATE'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const assetId = req.params.id as string
+      const validatedData = updateAssetSchema.parse(req.body)
+
+      const updatedAsset = await AssetService.updateAsset({
+        id: assetId,
+        ...validatedData,
+      })
+
+      res.json({
+        message: 'Activo actualizado con éxito',
+        asset: updatedAsset,
+      })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.issues })
+      }
+      if (error instanceof Error && error.message === 'NOT_FOUND') {
+        return res.status(404).json({ error: 'Activo no encontrado' })
+      }
+      res.status(500).json({ error: 'Error al actualizar el activo' })
+    }
+  },
+)
 
 // PATCH /api/v1/assets/:id/status - Cambiar estado con auditoría
 router.patch(
