@@ -2,14 +2,29 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { socket } from '../lib/socket'
 import { useAuth } from '../context/AuthContext'
+import { AssetModal } from '../components/AssetModal'
+
+// Interfaces alineadas con el esquema Prisma / REST API
+export interface Category {
+  id: string
+  name: string
+}
+
+export interface Location {
+  id: string
+  name: string
+}
 
 export interface Asset {
   id: string
+  tagCode: string
   name: string
-  code: string
-  category: string
+  serialNumber?: string | null
   status: 'OPERATIONAL' | 'MAINTENANCE' | 'CRITICAL' | 'DECOMMISSIONED'
-  location: string
+  categoryId: string
+  locationId: string
+  category?: Category
+  location?: Location
   updatedAt: string
 }
 
@@ -19,13 +34,33 @@ export const DashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Estados para el Modal
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+
   // Cargar lista inicial de activos
   const fetchAssets = async () => {
     try {
-      const { data } = await api.get('/assets')
-      setAssets(data)
+      const response = await api.get('/assets')
+      const data = response.data
+
+      // Manejar respuestas directas [...], envueltas { data: [...] } o { assets: [...] }
+      if (Array.isArray(data)) {
+        setAssets(data)
+      } else if (Array.isArray(data?.data)) {
+        setAssets(data.data)
+      } else if (Array.isArray(data?.assets)) {
+        setAssets(data.assets)
+      } else {
+        console.warn(
+          'La respuesta de /assets no contiene un Array válido:',
+          data,
+        )
+        setAssets([])
+      }
     } catch (error) {
       console.error('Error al cargar activos:', error)
+      setAssets([])
     } finally {
       setIsLoading(false)
     }
@@ -56,12 +91,25 @@ export const DashboardPage: React.FC = () => {
     }
   }, [])
 
-  const filteredAssets = assets.filter(
+  const safeAssets = Array.isArray(assets) ? assets : []
+
+  const filteredAssets = safeAssets.filter(
     (a) =>
-      a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.location.toLowerCase().includes(searchTerm.toLowerCase()),
+      a.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.tagCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.category?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.location?.name?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  const handleOpenCreateModal = () => {
+    setSelectedAsset(null)
+    setIsModalOpen(true)
+  }
+
+  const handleOpenEditModal = (asset: Asset) => {
+    setSelectedAsset(asset)
+    setIsModalOpen(true)
+  }
 
   const getStatusBadge = (status: Asset['status']) => {
     const styles = {
@@ -122,7 +170,7 @@ export const DashboardPage: React.FC = () => {
               Total Activos
             </p>
             <p className='text-2xl font-bold text-white mt-1'>
-              {assets.length}
+              {safeAssets.length}
             </p>
           </div>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -130,7 +178,7 @@ export const DashboardPage: React.FC = () => {
               Operacionales
             </p>
             <p className='text-2xl font-bold text-emerald-400 mt-1'>
-              {assets.filter((a) => a.status === 'OPERATIONAL').length}
+              {safeAssets.filter((a) => a.status === 'OPERATIONAL').length}
             </p>
           </div>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -138,7 +186,7 @@ export const DashboardPage: React.FC = () => {
               En Mantenimiento
             </p>
             <p className='text-2xl font-bold text-amber-400 mt-1'>
-              {assets.filter((a) => a.status === 'MAINTENANCE').length}
+              {safeAssets.filter((a) => a.status === 'MAINTENANCE').length}
             </p>
           </div>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -146,7 +194,7 @@ export const DashboardPage: React.FC = () => {
               Estado Crítico
             </p>
             <p className='text-2xl font-bold text-rose-400 mt-1'>
-              {assets.filter((a) => a.status === 'CRITICAL').length}
+              {safeAssets.filter((a) => a.status === 'CRITICAL').length}
             </p>
           </div>
         </div>
@@ -162,7 +210,10 @@ export const DashboardPage: React.FC = () => {
           />
 
           {hasPermission('ASSET_CREATE') && (
-            <button className='w-full sm:w-auto px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-sky-600/20 transition-all'>
+            <button
+              onClick={handleOpenCreateModal}
+              className='w-full sm:w-auto px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-sky-600/20 transition-all'
+            >
               + Nuevo Activo
             </button>
           )}
@@ -200,23 +251,26 @@ export const DashboardPage: React.FC = () => {
                       className='hover:bg-slate-800/40 transition-colors'
                     >
                       <td className='py-3.5 px-4 font-mono text-xs text-sky-400'>
-                        {asset.code}
+                        {asset.tagCode}
                       </td>
                       <td className='py-3.5 px-4 font-medium text-white'>
                         {asset.name}
                       </td>
                       <td className='py-3.5 px-4 text-slate-400'>
-                        {asset.category}
+                        {asset.category?.name || 'Sin Categoría'}
                       </td>
                       <td className='py-3.5 px-4 text-slate-400'>
-                        {asset.location}
+                        {asset.location?.name || 'Sin Ubicación'}
                       </td>
                       <td className='py-3.5 px-4'>
                         {getStatusBadge(asset.status)}
                       </td>
                       <td className='py-3.5 px-4 text-right'>
                         {hasPermission('ASSET_UPDATE') && (
-                          <button className='text-xs text-sky-400 hover:text-sky-300 font-medium'>
+                          <button
+                            onClick={() => handleOpenEditModal(asset)}
+                            className='text-xs text-sky-400 hover:text-sky-300 font-medium'
+                          >
                             Editar
                           </button>
                         )}
@@ -229,6 +283,14 @@ export const DashboardPage: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* Modal Component */}
+      <AssetModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchAssets}
+        assetToEdit={selectedAsset}
+      />
     </div>
   )
 }

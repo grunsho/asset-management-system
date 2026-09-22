@@ -6,6 +6,8 @@ import dotenv from 'dotenv'
 
 import authRoutes from './routes/auth-routes'
 import assetRoutes from './routes/asset-routes'
+import categoryRoutes from './routes/category-routes'
+import locationRoutes from './routes/location-routes'
 import { initSocket } from './lib/socket'
 
 dotenv.config()
@@ -34,6 +36,8 @@ app.get('/health', (_req, res) => {
 // Registrar rutas de la API
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/assets', assetRoutes)
+app.use('/api/v1/categories', categoryRoutes)
+app.use('/api/v1/locations', locationRoutes)
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 API corriendo en http://localhost:${PORT}`)
