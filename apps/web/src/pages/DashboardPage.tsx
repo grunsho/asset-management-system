@@ -131,17 +131,11 @@ export const DashboardPage: React.FC = () => {
   }
   const handleExportCSV = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/v1/reports/export?format=csv', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const response = await api.get('/reports/export?format=csv', {
+        responseType: 'blob',
       })
 
-      if (!response.ok) throw new Error('Error al descargar el archivo')
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
+      const url = window.URL.createObjectURL(new Blob([response.data]))
       const a = document.createElement('a')
       a.href = url
       a.download = `inventario_activos_${Date.now()}.csv`
@@ -189,16 +183,18 @@ export const DashboardPage: React.FC = () => {
 
       {/* Main Content */}
       <main className='flex-1 max-w-7xl w-full mx-auto p-6'>
-        <div className="flex justify-between items-center">
-      <h1 className="text-2xl font-bold text-white">Dashboard de Activos</h1>
-      <button
-        onClick={handleExportCSV}
-        className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg border border-slate-700 transition-colors"
-      >
-        <Download className="w-4 h-4" />
-        Exportar CSV
-      </button>
-    </div>
+        <div className='flex justify-between items-center'>
+          <h1 className='text-2xl font-bold text-white'>
+            Dashboard de Activos
+          </h1>
+          <button
+            onClick={handleExportCSV}
+            className='flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg border border-slate-700 transition-colors cursor-pointer'
+          >
+            <Download className='w-4 h-4' />
+            Exportar CSV
+          </button>
+        </div>
         {/* KPI Cards */}
         <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 mb-6'>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -234,6 +230,9 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* Renderizado del componente de gráficos */}
+        <AssetCharts assets={safeAssets} />
 
         {/* Action & Search Bar */}
         <div className='flex flex-col sm:flex-row items-center justify-between gap-4 mb-6'>

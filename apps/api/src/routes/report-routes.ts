@@ -1,11 +1,17 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
+import {
+  authenticateToken,
+  checkPermission,
+} from '../middlewares/auth-middlewares'
 
 const router = Router()
 
 // GET /api/v1/reports/export?format=csv
 router.get(
   '/export',
+  authenticateToken,
+  checkPermission('ASSET_READ'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const assets = await prisma.asset.findMany({
