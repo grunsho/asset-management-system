@@ -149,6 +149,10 @@ export class AssetService {
       const updatedAsset = await tx.asset.update({
         where: { id: assetId },
         data: { status: newStatus },
+        include: {
+          category: { select: { id: true, name: true } },
+          location: { select: { id: true, name: true } },
+        },
       })
 
       // Registrar la entrada inmutable en la tabla de auditoría (asset_logs)
