@@ -36,8 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setAccessToken(data.accessToken)
 
         const meRes = await api.get('/auth/me')
-        setUser(meRes.data.user)
-        setPermissions(meRes.data.permissions)
+        const normalizedUser = {
+          ...meRes.data.user,
+          role: meRes.data.user?.role?.name ?? meRes.data.user?.role ?? 'USER',
+        }
+
+        setUser(normalizedUser)
+        setPermissions(meRes.data.permissions || data.permissions || [])
       } catch (error) {
         setUser(null)
         setPermissions([])
@@ -53,7 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password })
     setAccessToken(data.accessToken)
-    setUser(data.user)
+    setUser({
+      ...data.user,
+      role: data.user.role?.name ?? data.user.role ?? 'USER',
+    })
     setPermissions(data.permissions || [])
   }
 
@@ -71,6 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }
 
   const hasPermission = (permission: string): boolean => {
+    if (user?.role === 'ADMIN') {
+      return true
+    }
     return permissions.includes(permission)
   }
 

@@ -56,7 +56,9 @@ export const checkPermission = (requiredPermission: string) => {
       return res.status(401).json({ error: 'Usuario no encontrado' })
     }
 
-    const hasPermission = req.user.permissions.includes(requiredPermission)
+    const isAdmin = req.user.role === 'ADMIN'
+    const hasPermission =
+      isAdmin || req.user.permissions.includes(requiredPermission)
 
     if (!hasPermission) {
       return res.status(403).json({

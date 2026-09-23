@@ -180,7 +180,10 @@ router.get(
       }
 
       res.json({
-        user,
+        user: {
+          ...user,
+          role: user.role.name,
+        },
         permissions: req.user?.permissions || [],
       })
     } catch (error) {

@@ -43,4 +43,24 @@ router.post('/', checkPermission('ASSET_CREATE'), async (req, res) => {
   }
 })
 
+// DELETE /api/v1/categories/:id
+router.delete('/:id', checkPermission('ASSET_DELETE'), async (req, res) => {
+  try {
+    const { id } = req.params as { id: string }
+
+    // Validar si existen activos asociados
+    const count = await prisma.asset.count({ where: { categoryId: id } })
+    if (count > 0) {
+      return res.status(400).json({
+        error: `No se puede eliminar la categoría. Tiene ${count} activo(s) asociado(s).`,
+      })
+    }
+
+    await prisma.category.delete({ where: { id } })
+    res.json({ message: 'Categoría eliminada con éxito.' })
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar la categoría' })
+  }
+})
+
 export default router

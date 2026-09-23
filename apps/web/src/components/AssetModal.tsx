@@ -136,6 +136,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
     <>
       <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4'>
         <div className='bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden'>
+          
           {/* Header */}
           <div className='px-6 py-4 border-b border-slate-800 flex items-center justify-between'>
             <h2 className='text-lg font-bold text-white'>
@@ -207,6 +208,7 @@ export const AssetModal: React.FC<AssetModalProps> = ({
             </div>
 
             <div className='grid grid-cols-2 gap-4'>
+              
               {/* Categoría */}
               <div>
                 <div className='flex items-center justify-between mb-1'>
