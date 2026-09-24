@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { Asset, AssetStatus } from '../pages/DashboardPage'
 
@@ -19,6 +19,14 @@ export const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({
   const [reason, setReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (asset) {
+      setStatus(asset.status)
+      setReason('')
+      setError('')
+    }
+  }, [asset])
 
   if (!isOpen || !asset) return null
 

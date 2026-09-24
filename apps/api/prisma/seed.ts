@@ -71,12 +71,21 @@ async function main() {
       'ASSET_DELETE',
       'USER_MANAGE',
     ],
-    [RoleName.OPERATOR]: ['ASSET_READ', 'ASSET_UPDATE', 'ASSET_UPDATE_STATUS'],
+    [RoleName.OPERATOR]: ['ASSET_READ', 'ASSET_UPDATE_STATUS'],
     [RoleName.VIEWER]: ['ASSET_READ'],
   }
 
   for (const [roleName, permCodes] of Object.entries(rolePermissionsMap)) {
     const roleId = roles[roleName as RoleName]
+    const permissionIds = permCodes.map((code) => permissions[code])
+
+    await prisma.rolePermission.deleteMany({
+      where: {
+        roleId,
+        permissionId: { notIn: permissionIds },
+      },
+    })
+
     for (const code of permCodes) {
       const permissionId = permissions[code]
       await prisma.rolePermission.upsert({

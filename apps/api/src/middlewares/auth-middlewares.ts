@@ -13,7 +13,7 @@ export const authenticateToken = async (
   next: NextFunction,
 ) => {
   const authHeader = req.headers.authorization
-  const token = authHeader && authHeader.split(' ')[1] // Formato: "Bearer <token>"
+  const token = authHeader && authHeader.split(' ')[1]
 
   if (!token) {
     return res
@@ -23,24 +23,28 @@ export const authenticateToken = async (
 
   try {
     const decoded = verifyAccessToken(token)
-
-    let permissions = decoded.permissions || []
-
-    if (!permissions.length) {
-      const userRole = await prisma.role.findUnique({
-        where: { name: decoded.role as any },
-        include: {
-          permissions: {
-            include: { permission: true },
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: { permission: true },
+            },
           },
         },
-      })
+      },
+    })
 
-      permissions = userRole?.permissions.map((p) => p.permission.code) || []
+    if (!user || !user.isActive) {
+      return res.status(403).json({ error: 'Usuario inactivo o no encontrado' })
     }
 
+    const permissions = user.role.permissions.map((p) => p.permission.code)
+
     req.user = {
-      ...decoded,
+      userId: user.id,
+      role: user.role.name,
       permissions,
     }
 

@@ -3,7 +3,9 @@ import { api } from '../lib/api'
 import { socket } from '../lib/socket'
 import { useAuth } from '../context/AuthContext'
 import { AssetModal } from '../components/AssetModal'
-import { Download } from 'lucide-react'
+import { AssetAuditModal } from '../components/AssetAuditModal'
+import { ChangeStatusModal } from '../components/ChangeStatusModal'
+import { Download, History, Trash2 } from 'lucide-react'
 import { AssetCharts } from '../components/AssetCharts'
 
 // Interfaces alineadas con el esquema Prisma / REST API
@@ -37,22 +39,46 @@ export const DashboardPage: React.FC = () => {
   const [assets, setAssets] = useState<Asset[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<AssetStatus | ''>('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [locationFilter, setLocationFilter] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  })
+  const [actionError, setActionError] = useState('')
 
   // Estados para el Modal
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+  const [statusAsset, setStatusAsset] = useState<Asset | null>(null)
+  const [auditAsset, setAuditAsset] = useState<Asset | null>(null)
 
   // Cargar lista inicial de activos
   const fetchAssets = async () => {
     try {
-      const response = await api.get('/assets')
+      const response = await api.get('/assets', {
+        params: {
+          page,
+          limit: pagination.limit,
+          search: searchTerm || undefined,
+          status: statusFilter || undefined,
+          categoryId: categoryFilter || undefined,
+          locationId: locationFilter || undefined,
+        },
+      })
       const data = response.data
 
-      // Manejar respuestas directas [...], envueltas { data: [...] } o { assets: [...] }
       if (Array.isArray(data)) {
         setAssets(data)
       } else if (Array.isArray(data?.data)) {
         setAssets(data.data)
+        if (data.pagination) setPagination(data.pagination)
       } else if (Array.isArray(data?.assets)) {
         setAssets(data.assets)
       } else {
@@ -71,10 +97,29 @@ export const DashboardPage: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchAssets()
+    void fetchAssets()
+  }, [page, searchTerm, statusFilter, categoryFilter, locationFilter])
 
-    // Conectar WebSocket y escuchar actualizaciones en tiempo real
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const [categoriesResponse, locationsResponse] = await Promise.all([
+          api.get('/categories'),
+          api.get('/locations'),
+        ])
+        setCategories(categoriesResponse.data)
+        setLocations(locationsResponse.data)
+      } catch (error) {
+        console.error('Error al cargar filtros de activos:', error)
+      }
+    }
+
+    void fetchFilterOptions()
+  }, [])
+
+  useEffect(() => {
     socket.connect()
+    socket.emit('join:assets')
 
     socket.on('asset:updated', (updatedAsset: Asset) => {
       setAssets((prev) =>
@@ -88,22 +133,19 @@ export const DashboardPage: React.FC = () => {
       setAssets((prev) => [newAsset, ...prev])
     })
 
+    socket.on('asset:deleted', ({ id }: { id: string }) => {
+      setAssets((prev) => prev.filter((asset) => asset.id !== id))
+    })
+
     return () => {
       socket.off('asset:updated')
       socket.off('asset:created')
+      socket.off('asset:deleted')
       socket.disconnect()
     }
   }, [])
 
   const safeAssets = Array.isArray(assets) ? assets : []
-
-  const filteredAssets = safeAssets.filter(
-    (a) =>
-      a.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.tagCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.category?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.location?.name?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
 
   const handleOpenCreateModal = () => {
     setSelectedAsset(null)
@@ -113,6 +155,20 @@ export const DashboardPage: React.FC = () => {
   const handleOpenEditModal = (asset: Asset) => {
     setSelectedAsset(asset)
     setIsModalOpen(true)
+  }
+
+  const handleDelete = async (asset: Asset) => {
+    if (!window.confirm(`¿Eliminar el activo ${asset.tagCode}?`)) return
+
+    try {
+      setActionError('')
+      await api.delete(`/assets/${asset.id}`)
+      await fetchAssets()
+    } catch (error: any) {
+      setActionError(
+        error.response?.data?.error || 'No se pudo eliminar el activo',
+      )
+    }
   }
 
   const getStatusBadge = (status: Asset['status']) => {
@@ -236,13 +292,61 @@ export const DashboardPage: React.FC = () => {
 
         {/* Action & Search Bar */}
         <div className='flex flex-col sm:flex-row items-center justify-between gap-4 mb-6'>
-          <input
-            type='text'
-            placeholder='Buscar activo por nombre, código o ubicación...'
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className='w-full sm:w-80 px-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
-          />
+          <div className='grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4'>
+            <input
+              type='text'
+              placeholder='Buscar por nombre o código...'
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setPage(1)
+              }}
+              className='w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as AssetStatus | '')
+                setPage(1)
+              }}
+              className='w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
+            >
+              <option value=''>Todos los estados</option>
+              <option value='OPERATIONAL'>Operativos</option>
+              <option value='IN_MAINTENANCE'>En mantenimiento</option>
+              <option value='OUT_OF_SERVICE'>Fuera de servicio</option>
+            </select>
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value)
+                setPage(1)
+              }}
+              className='w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
+            >
+              <option value=''>Todas las categorías</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={locationFilter}
+              onChange={(e) => {
+                setLocationFilter(e.target.value)
+                setPage(1)
+              }}
+              className='w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
+            >
+              <option value=''>Todas las ubicaciones</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {hasPermission('ASSET_CREATE') && (
             <button
@@ -253,6 +357,12 @@ export const DashboardPage: React.FC = () => {
             </button>
           )}
         </div>
+
+        {actionError && (
+          <div className='mb-4 rounded-lg border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400'>
+            {actionError}
+          </div>
+        )}
 
         {/* Table */}
         <div className='bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl'>
@@ -273,14 +383,14 @@ export const DashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className='divide-y divide-slate-800/60 text-sm'>
-                {filteredAssets.length === 0 ? (
+                {safeAssets.length === 0 ? (
                   <tr>
                     <td colSpan={6} className='py-8 text-center text-slate-500'>
                       No se encontraron activos.
                     </td>
                   </tr>
                 ) : (
-                  filteredAssets.map((asset) => (
+                  safeAssets.map((asset) => (
                     <tr
                       key={asset.id}
                       className='hover:bg-slate-800/40 transition-colors'
@@ -301,14 +411,44 @@ export const DashboardPage: React.FC = () => {
                         {getStatusBadge(asset.status)}
                       </td>
                       <td className='py-3.5 px-4 text-right'>
-                        {hasPermission('ASSET_UPDATE') && (
-                          <button
-                            onClick={() => handleOpenEditModal(asset)}
-                            className='text-xs text-sky-400 hover:text-sky-300 font-medium'
-                          >
-                            Editar
-                          </button>
-                        )}
+                        <div className='flex justify-end gap-3'>
+                          {hasPermission('ASSET_UPDATE_STATUS') && (
+                            <button
+                              onClick={() => setStatusAsset(asset)}
+                              className='text-xs text-amber-400 hover:text-amber-300 font-medium'
+                            >
+                              Estado
+                            </button>
+                          )}
+                          {hasPermission('ASSET_UPDATE') && (
+                            <button
+                              onClick={() => handleOpenEditModal(asset)}
+                              className='text-xs text-sky-400 hover:text-sky-300 font-medium'
+                            >
+                              Editar
+                            </button>
+                          )}
+                          {hasPermission('ASSET_READ') && (
+                            <button
+                              title='Ver historial'
+                              aria-label={`Ver historial de ${asset.tagCode}`}
+                              onClick={() => setAuditAsset(asset)}
+                              className='text-slate-400 hover:text-white'
+                            >
+                              <History className='h-4 w-4' />
+                            </button>
+                          )}
+                          {hasPermission('ASSET_DELETE') && (
+                            <button
+                              title='Eliminar activo'
+                              aria-label={`Eliminar ${asset.tagCode}`}
+                              onClick={() => void handleDelete(asset)}
+                              className='text-rose-400 hover:text-rose-300'
+                            >
+                              <Trash2 className='h-4 w-4' />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -316,6 +456,29 @@ export const DashboardPage: React.FC = () => {
               </tbody>
             </table>
           )}
+        </div>
+
+        <div className='flex items-center justify-between py-4 text-xs text-slate-400'>
+          <span>
+            {pagination.total} activo(s) · Página {pagination.page} de{' '}
+            {pagination.totalPages}
+          </span>
+          <div className='flex gap-2'>
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((currentPage) => currentPage - 1)}
+              className='rounded border border-slate-700 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40'
+            >
+              Anterior
+            </button>
+            <button
+              disabled={page >= pagination.totalPages}
+              onClick={() => setPage((currentPage) => currentPage + 1)}
+              className='rounded border border-slate-700 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40'
+            >
+              Siguiente
+            </button>
+          </div>
         </div>
       </main>
 
@@ -325,6 +488,18 @@ export const DashboardPage: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchAssets}
         assetToEdit={selectedAsset}
+      />
+      <ChangeStatusModal
+        isOpen={!!statusAsset}
+        asset={statusAsset}
+        onClose={() => setStatusAsset(null)}
+        onSuccess={fetchAssets}
+      />
+      <AssetAuditModal
+        isOpen={!!auditAsset}
+        assetId={auditAsset?.id || null}
+        assetTagCode={auditAsset?.tagCode}
+        onClose={() => setAuditAsset(null)}
       />
     </div>
   )

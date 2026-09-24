@@ -32,18 +32,29 @@ export class AssetService {
     page?: number
     limit?: number
     status?: AssetStatus
+    categoryId?: string
+    locationId?: string
     search?: string
   }) {
     const page = params.page || 1
-    const limit = params.limit || 10
+    const limit = params.limit || 100
     const skip = (page - 1) * limit
 
     const where: any = {}
     if (params.status) where.status = params.status
+    if (params.categoryId) where.categoryId = params.categoryId
+    if (params.locationId) where.locationId = params.locationId
+
     if (params.search) {
       where.OR = [
         { name: { contains: params.search, mode: 'insensitive' } },
         { tagCode: { contains: params.search, mode: 'insensitive' } },
+        {
+          category: { name: { contains: params.search, mode: 'insensitive' } },
+        },
+        {
+          location: { name: { contains: params.search, mode: 'insensitive' } },
+        },
       ]
     }
 
@@ -54,8 +65,8 @@ export class AssetService {
         skip,
         take: limit,
         include: {
-          category: { select: { name: true } },
-          location: { select: { name: true } },
+          category: { select: { id: true, name: true } },
+          location: { select: { id: true, name: true } },
         },
         orderBy: { updatedAt: 'desc' },
       }),
@@ -70,6 +81,35 @@ export class AssetService {
         totalPages: Math.ceil(total / limit),
       },
     }
+  }
+
+  static async getAssetById(id: string) {
+    const asset = await prisma.asset.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        location: true,
+        logs: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+
+    if (!asset) {
+      throw new Error('NOT_FOUND')
+    }
+
+    return asset
   }
 
   // 2. Crear un nuevo activo
@@ -91,6 +131,7 @@ export class AssetService {
     return createdAsset
   }
 
+  // 3. Actualización de Activo
   static async updateAsset(data: UpdateAssetInput) {
     const existingAsset = await prisma.asset.findUnique({
       where: { id: data.id },
@@ -105,7 +146,7 @@ export class AssetService {
       data: {
         tagCode: data.tagCode,
         name: data.name,
-        serialNumber: data.serialNumber ?? undefined,
+        serialNumber: data.serialNumber,
         categoryId: data.categoryId,
         locationId: data.locationId,
       },
@@ -124,7 +165,25 @@ export class AssetService {
     return updatedAsset
   }
 
-  // 3. Transición de Estado con Log de Auditoría Transaccional
+  static async deleteAsset(id: string) {
+    const existingAsset = await prisma.asset.findUnique({
+      where: { id },
+    })
+
+    if (!existingAsset) {
+      throw new Error('NOT_FOUND')
+    }
+
+    await prisma.asset.delete({ where: { id } })
+
+    try {
+      getIO().emit('asset:deleted', { id })
+    } catch (error) {
+      console.error('Error emitiendo evento WebSocket de eliminación:', error)
+    }
+  }
+
+  // 4. Transición de Estado con Log de Auditoría Transaccional
   static async updateStatus({
     assetId,
     newStatus,
@@ -146,7 +205,7 @@ export class AssetService {
       }
 
       // Actualizar el activo
-      const updatedAsset = await tx.asset.update({
+      const asset = await tx.asset.update({
         where: { id: assetId },
         data: { status: newStatus },
         include: {
@@ -166,19 +225,19 @@ export class AssetService {
         },
       })
 
-      return updatedAsset
+      return asset
     })
 
     // Emitir evento en tiempo real a los clientes conectados
     try {
-      const payload = {
-        id: updatedAsset.id,
-        status: updatedAsset.status,
-        updatedAt: updatedAsset.updatedAt,
-      }
+      // const payload = {
+      //   id: updatedAsset.id,
+      //   status: updatedAsset.status,
+      //   updatedAt: updatedAsset.updatedAt,
+      // }
 
-      getIO().emit('asset:updated', payload)
-      getIO().emit('asset:status_changed', payload)
+      getIO().emit('asset:updated', updatedAsset)
+      getIO().emit('asset:status_changed', updatedAsset)
     } catch (error) {
       console.error('Error emitiendo evento de WebSocket:', error)
     }
@@ -186,7 +245,7 @@ export class AssetService {
     return updatedAsset
   }
 
-  // 4. Obtener historial de auditoría de un activo
+  // 5. Obtener historial de auditoría de un activo
   static async getAssetLogs(assetId: string) {
     return prisma.assetLog.findMany({
       where: { assetId },

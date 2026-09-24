@@ -41,19 +41,25 @@ const updateAssetSchema = z
     message: 'Debe enviar al menos un campo para actualizar',
   })
 
+const assetQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  status: z.enum(AssetStatus).optional(),
+  categoryId: z.string().uuid().optional(),
+  locationId: z.string().uuid().optional(),
+  search: z.string().trim().optional(),
+})
+
 // GET /api/v1/assets - Listar activos
 router.get('/', checkPermission('ASSET_READ'), async (req, res) => {
   try {
-    const page = req.query.page ? parseInt(req.query.page as string) : undefined
-    const limit = req.query.limit
-      ? parseInt(req.query.limit as string)
-      : undefined
-    const status = req.query.status as AssetStatus | undefined
-    const search = req.query.search as string | undefined
-
-    const result = await AssetService.getAssets({ page, limit, status, search })
+    const query = assetQuerySchema.parse(req.query)
+    const result = await AssetService.getAssets(query)
     res.json(result)
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues })
+    }
     res.status(500).json({ error: 'Error al consultar activos' })
   }
 })
@@ -101,6 +107,32 @@ router.put(
     }
   },
 )
+
+// GET /api/v1/assets/:id - Detalle completo con historial
+router.get('/:id', checkPermission('ASSET_READ'), async (req, res) => {
+  try {
+    const asset = await AssetService.getAssetById(req.params.id as string)
+    res.json(asset)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NOT_FOUND') {
+      return res.status(404).json({ error: 'Activo no encontrado' })
+    }
+    res.status(500).json({ error: 'Error al consultar el activo' })
+  }
+})
+
+// DELETE /api/v1/assets/:id - Eliminar activo
+router.delete('/:id', checkPermission('ASSET_DELETE'), async (req, res) => {
+  try {
+    await AssetService.deleteAsset(req.params.id as string)
+    res.json({ message: 'Activo eliminado con éxito' })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NOT_FOUND') {
+      return res.status(404).json({ error: 'Activo no encontrado' })
+    }
+    res.status(500).json({ error: 'Error al eliminar el activo' })
+  }
+})
 
 // PATCH /api/v1/assets/:id/status - Cambiar estado con auditoría
 router.patch(
