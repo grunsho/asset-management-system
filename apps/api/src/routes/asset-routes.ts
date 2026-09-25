@@ -48,6 +48,8 @@ const assetQuerySchema = z.object({
   categoryId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
   search: z.string().trim().optional(),
+  fromDate: z.coerce.date().optional(),
+  toDate: z.coerce.date().optional(),
 })
 
 // GET /api/v1/assets - Listar activos

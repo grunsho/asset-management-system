@@ -26,37 +26,52 @@ export interface UpdateAssetInput {
   locationId?: string
 }
 
+export interface AssetFilters {
+  status?: AssetStatus
+  categoryId?: string
+  locationId?: string
+  search?: string
+  fromDate?: Date
+  toDate?: Date
+}
+
+export const buildAssetWhere = (params: AssetFilters) => {
+  const where: any = {}
+  if (params.status) where.status = params.status
+  if (params.categoryId) where.categoryId = params.categoryId
+  if (params.locationId) where.locationId = params.locationId
+
+  if (params.fromDate || params.toDate) {
+    where.updatedAt = {
+      ...(params.fromDate ? { gte: params.fromDate } : {}),
+      ...(params.toDate ? { lte: params.toDate } : {}),
+    }
+  }
+
+  if (params.search) {
+    where.OR = [
+      { name: { contains: params.search, mode: 'insensitive' } },
+      { tagCode: { contains: params.search, mode: 'insensitive' } },
+      { category: { name: { contains: params.search, mode: 'insensitive' } } },
+      { location: { name: { contains: params.search, mode: 'insensitive' } } },
+    ]
+  }
+
+  return where
+}
+
 export class AssetService {
   // 1. Obtener activos paginados con filtros
-  static async getAssets(params: {
-    page?: number
-    limit?: number
-    status?: AssetStatus
-    categoryId?: string
-    locationId?: string
-    search?: string
-  }) {
+  static async getAssets(
+    params: {
+      page?: number
+      limit?: number
+    } & AssetFilters,
+  ) {
     const page = params.page || 1
     const limit = params.limit || 100
     const skip = (page - 1) * limit
-
-    const where: any = {}
-    if (params.status) where.status = params.status
-    if (params.categoryId) where.categoryId = params.categoryId
-    if (params.locationId) where.locationId = params.locationId
-
-    if (params.search) {
-      where.OR = [
-        { name: { contains: params.search, mode: 'insensitive' } },
-        { tagCode: { contains: params.search, mode: 'insensitive' } },
-        {
-          category: { name: { contains: params.search, mode: 'insensitive' } },
-        },
-        {
-          location: { name: { contains: params.search, mode: 'insensitive' } },
-        },
-      ]
-    }
+    const where = buildAssetWhere(params)
 
     const [total, assets] = await Promise.all([
       prisma.asset.count({ where }),
@@ -80,6 +95,61 @@ export class AssetService {
         limit,
         totalPages: Math.ceil(total / limit),
       },
+    }
+  }
+
+  static async getAssetMetrics(filters: AssetFilters = {}) {
+    const where = buildAssetWhere(filters)
+    const [total, statusGroups, locationGroups] = await Promise.all([
+      prisma.asset.count({ where }),
+      prisma.asset.groupBy({
+        by: ['status'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.asset.groupBy({
+        by: ['locationId'],
+        where,
+        _count: { _all: true },
+      }),
+    ])
+
+    const counts = statusGroups.reduce(
+      (result, group) => {
+        result[group.status] = group._count._all
+        return result
+      },
+      {} as Record<string, number>,
+    )
+    const locationIds = locationGroups.map((group) => group.locationId)
+    const locations = locationIds.length
+      ? await prisma.location.findMany({
+          where: { id: { in: locationIds } },
+          select: { id: true, name: true },
+        })
+      : []
+    const locationNames = new Map(
+      locations.map((location) => [location.id, location.name]),
+    )
+
+    return {
+      total,
+      operational: counts.OPERATIONAL || 0,
+      operationalPercentage: total
+        ? Number((((counts.OPERATIONAL || 0) / total) * 100).toFixed(2))
+        : 0,
+      inMaintenance: counts.IN_MAINTENANCE || 0,
+      outOfService: counts.OUT_OF_SERVICE || 0,
+      critical: counts.OUT_OF_SERVICE || 0,
+      byStatus: statusGroups.map((group) => ({
+        status: group.status,
+        count: group._count._all,
+      })),
+      byLocation: locationGroups.map((group) => ({
+        locationId: group.locationId,
+        name: locationNames.get(group.locationId) || 'Sin Ubicación',
+        count: group._count._all,
+      })),
     }
   }
 

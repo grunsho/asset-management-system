@@ -1,11 +1,24 @@
 import { Router, Request, Response, NextFunction } from 'express'
-import { prisma } from '../lib/prisma'
+import { z } from 'zod'
 import {
   authenticateToken,
   checkPermission,
 } from '../middlewares/auth-middlewares'
+import { AssetService, buildAssetWhere } from '../services/asset-service'
+import { prisma } from '../lib/prisma'
+import { AssetStatus } from '@prisma/client'
 
 const router = Router()
+
+const reportQuerySchema = z.object({
+  format: z.literal('csv'),
+  status: z.enum(AssetStatus).optional(),
+  categoryId: z.string().uuid().optional(),
+  locationId: z.string().uuid().optional(),
+  search: z.string().trim().optional(),
+  fromDate: z.coerce.date().optional(),
+  toDate: z.coerce.date().optional(),
+})
 
 // GET /api/v1/reports/export?format=csv
 router.get(
@@ -14,7 +27,9 @@ router.get(
   checkPermission('ASSET_READ'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const query = reportQuerySchema.parse(req.query)
       const assets = await prisma.asset.findMany({
+        where: buildAssetWhere(query),
         include: {
           category: true,
           location: true,
@@ -60,6 +75,27 @@ router.get(
 
       return res.status(200).send(csvContent)
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.issues })
+      }
+      next(error)
+    }
+  },
+)
+
+router.get(
+  '/metrics',
+  authenticateToken,
+  checkPermission('ASSET_READ'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query = reportQuerySchema.omit({ format: true }).parse(req.query)
+      const metrics = await AssetService.getAssetMetrics(query)
+      res.json(metrics)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.issues })
+      }
       next(error)
     }
   },

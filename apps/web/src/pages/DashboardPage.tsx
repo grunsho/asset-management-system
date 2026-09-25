@@ -34,9 +34,30 @@ export interface Asset {
   updatedAt: string
 }
 
+interface AssetMetrics {
+  total: number
+  operational: number
+  operationalPercentage: number
+  inMaintenance: number
+  outOfService: number
+  critical: number
+  byStatus: Array<{ status: string; count: number }>
+  byLocation: Array<{ locationId: string; name: string; count: number }>
+}
+
 export const DashboardPage: React.FC = () => {
   const { user, logout, hasPermission } = useAuth()
   const [assets, setAssets] = useState<Asset[]>([])
+  const [metrics, setMetrics] = useState<AssetMetrics>({
+    total: 0,
+    operational: 0,
+    operationalPercentage: 0,
+    inMaintenance: 0,
+    outOfService: 0,
+    critical: 0,
+    byStatus: [],
+    byLocation: [],
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<AssetStatus | ''>('')
@@ -96,8 +117,25 @@ export const DashboardPage: React.FC = () => {
     }
   }
 
+  const fetchMetrics = async () => {
+    try {
+      const response = await api.get('/reports/metrics', {
+        params: {
+          search: searchTerm || undefined,
+          status: statusFilter || undefined,
+          categoryId: categoryFilter || undefined,
+          locationId: locationFilter || undefined,
+        },
+      })
+      setMetrics(response.data)
+    } catch (error) {
+      console.error('Error al cargar métricas:', error)
+    }
+  }
+
   useEffect(() => {
     void fetchAssets()
+    void fetchMetrics()
   }, [page, searchTerm, statusFilter, categoryFilter, locationFilter])
 
   useEffect(() => {
@@ -187,7 +225,14 @@ export const DashboardPage: React.FC = () => {
   }
   const handleExportCSV = async () => {
     try {
-      const response = await api.get('/reports/export?format=csv', {
+      const response = await api.get('/reports/export', {
+        params: {
+          format: 'csv',
+          search: searchTerm || undefined,
+          status: statusFilter || undefined,
+          categoryId: categoryFilter || undefined,
+          locationId: locationFilter || undefined,
+        },
         responseType: 'blob',
       })
 
@@ -252,13 +297,13 @@ export const DashboardPage: React.FC = () => {
           </button>
         </div>
         {/* KPI Cards */}
-        <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 mb-6'>
+        <div className='grid grid-cols-1 md:grid-cols-5 gap-4 mt-6 mb-6'>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
             <p className='text-xs font-medium text-slate-400 uppercase'>
               Total Activos
             </p>
             <p className='text-2xl font-bold text-white mt-1'>
-              {safeAssets.length}
+              {metrics.total}
             </p>
           </div>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -266,7 +311,7 @@ export const DashboardPage: React.FC = () => {
               Operacionales
             </p>
             <p className='text-2xl font-bold text-emerald-400 mt-1'>
-              {safeAssets.filter((a) => a.status === 'OPERATIONAL').length}
+              {metrics.operational} ({metrics.operationalPercentage}%)
             </p>
           </div>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -274,7 +319,7 @@ export const DashboardPage: React.FC = () => {
               En Mantenimiento
             </p>
             <p className='text-2xl font-bold text-amber-400 mt-1'>
-              {safeAssets.filter((a) => a.status === 'IN_MAINTENANCE').length}
+              {metrics.inMaintenance}
             </p>
           </div>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -282,13 +327,21 @@ export const DashboardPage: React.FC = () => {
               Fuera de Servicio
             </p>
             <p className='text-2xl font-bold text-rose-400 mt-1'>
-              {safeAssets.filter((a) => a.status === 'OUT_OF_SERVICE').length}
+              {metrics.outOfService}
+            </p>
+          </div>
+          <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
+            <p className='text-xs font-medium text-slate-400 uppercase'>
+              Críticos
+            </p>
+            <p className='text-2xl font-bold text-rose-400 mt-1'>
+              {metrics.critical}
             </p>
           </div>
         </div>
 
         {/* Renderizado del componente de gráficos */}
-        <AssetCharts assets={safeAssets} />
+        <AssetCharts assets={safeAssets} metrics={metrics} />
 
         {/* Action & Search Bar */}
         <div className='flex flex-col sm:flex-row items-center justify-between gap-4 mb-6'>

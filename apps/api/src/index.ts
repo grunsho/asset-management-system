@@ -3,6 +3,7 @@ import { createServer } from 'http'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
+import swaggerUi from 'swagger-ui-express'
 
 import authRoutes from './routes/auth-routes'
 import assetRoutes from './routes/asset-routes'
@@ -10,11 +11,12 @@ import categoryRoutes from './routes/category-routes'
 import locationRoutes from './routes/location-routes'
 import reportRoutes from './routes/report-routes'
 import { initSocket } from './lib/socket'
+import { openapiDocument } from './docs/openapi'
 
 dotenv.config()
 
-const app = express()
-const httpServer = createServer(app)
+export const app = express()
+export const httpServer = createServer(app)
 const PORT = process.env.PORT || 4000
 
 // Inicializar WebSockets
@@ -34,6 +36,11 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+app.get('/api/docs.json', (_req, res) => {
+  res.json(openapiDocument)
+})
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument))
+
 // Registrar rutas de la API
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/assets', assetRoutes)
@@ -41,7 +48,9 @@ app.use('/api/v1/categories', categoryRoutes)
 app.use('/api/v1/locations', locationRoutes)
 app.use('/api/v1/reports', reportRoutes)
 
-httpServer.listen(PORT, () => {
-  console.log(`🚀 API corriendo en http://localhost:${PORT}`)
-  console.log(`⚡ Servidor WebSocket listo`)
-})
+if (process.env.NODE_ENV !== 'test') {
+  httpServer.listen(PORT, () => {
+    console.log(`🚀 API corriendo en http://localhost:${PORT}`)
+    console.log(`⚡ Servidor WebSocket listo`)
+  })
+}

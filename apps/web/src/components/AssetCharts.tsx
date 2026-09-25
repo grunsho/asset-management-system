@@ -14,6 +14,10 @@ import { Asset } from '../pages/DashboardPage'
 
 interface AssetChartProps {
   assets: Asset[]
+  metrics?: {
+    byStatus: Array<{ status: string; count: number }>
+    byLocation: Array<{ name: string; count: number }>
+  }
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -23,7 +27,7 @@ const STATUS_COLORS: Record<string, string> = {
   DECOMMISSIONED: '#64748b', // Gris
 }
 
-export const AssetCharts: React.FC<AssetChartProps> = ({ assets }) => {
+export const AssetCharts: React.FC<AssetChartProps> = ({ assets, metrics }) => {
   // 1. Agrupación por Estado (Gráfico de Torta)
   const statusDataMap = assets.reduce(
     (acc, asset) => {
@@ -33,10 +37,15 @@ export const AssetCharts: React.FC<AssetChartProps> = ({ assets }) => {
     {} as Record<string, number>,
   )
 
-  const statusData = Object.keys(statusDataMap).map((status) => ({
-    name: status,
-    value: statusDataMap[status],
-  }))
+  const statusData = metrics?.byStatus.length
+    ? metrics.byStatus.map((entry) => ({
+        name: entry.status,
+        value: entry.count,
+      }))
+    : Object.keys(statusDataMap).map((status) => ({
+        name: status,
+        value: statusDataMap[status],
+      }))
 
   // 2. Agrupación de Ubicación (Gráfico de Barras)
   const locationDataMap = assets.reduce(
@@ -48,10 +57,15 @@ export const AssetCharts: React.FC<AssetChartProps> = ({ assets }) => {
     {} as Record<string, number>,
   )
 
-  const locationData = Object.keys(locationDataMap).map((loc) => ({
-    name: loc,
-    count: locationDataMap[loc],
-  }))
+  const locationData = metrics?.byLocation.length
+    ? metrics.byLocation.map((entry) => ({
+        name: entry.name,
+        count: entry.count,
+      }))
+    : Object.keys(locationDataMap).map((loc) => ({
+        name: loc,
+        count: locationDataMap[loc],
+      }))
 
   return (
     <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 my-6'>
@@ -97,19 +111,24 @@ export const AssetCharts: React.FC<AssetChartProps> = ({ assets }) => {
       </div>
 
       {/* Activos por Ubicación */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-slate-300 mb-4">
+      <div className='bg-slate-900/60 border border-slate-800 rounded-xl p-5'>
+        <h3 className='text-sm font-semibold text-slate-300 mb-4'>
           Activos por Ubicación
         </h3>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className='h-64 w-full'>
+          <ResponsiveContainer width='100%' height='100%'>
             <BarChart data={locationData}>
-              <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-              <YAxis allowDecimals={false} stroke="#64748b" fontSize={12} />
+              <XAxis dataKey='name' stroke='#64748b' fontSize={12} />
+              <YAxis allowDecimals={false} stroke='#64748b' fontSize={12} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }}
+                contentStyle={{
+                  backgroundColor: '#0f172a',
+                  borderColor: '#334155',
+                  borderRadius: '8px',
+                  color: '#fff',
+                }}
               />
-              <Bar dataKey="count" fill="#0284c7" radius={[4, 4, 0, 0]} />
+              <Bar dataKey='count' fill='#0284c7' radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
