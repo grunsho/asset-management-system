@@ -21,6 +21,7 @@ describe('checkPermission', () => {
     expect(response.status).toHaveBeenCalledWith(401)
     expect(response.json).toHaveBeenCalledWith({
       error: 'Usuario no encontrado',
+      code: 'AUTHENTICATION_REQUIRED',
     })
     expect(next).not.toHaveBeenCalled()
   })
@@ -80,6 +81,7 @@ describe('checkPermission', () => {
     expect(response.status).toHaveBeenCalledWith(403)
     expect(response.json).toHaveBeenCalledWith({
       error: 'Permiso insuficiente. Requiere: ASSET_UPDATE',
+      code: 'PERMISSION_DENIED',
     })
     expect(next).not.toHaveBeenCalled()
   })

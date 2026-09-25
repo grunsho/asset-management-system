@@ -5,8 +5,14 @@ const assetStatus = {
 
 const errorResponse = {
   type: 'object',
+  required: ['error', 'code'],
   properties: {
     error: { type: 'string' },
+    code: { type: 'string', example: 'VALIDATION_ERROR' },
+    details: {
+      description: 'Detalles de validación o conflicto, cuando corresponde',
+      nullable: true,
+    },
   },
 }
 

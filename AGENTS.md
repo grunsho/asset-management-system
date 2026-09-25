@@ -25,6 +25,7 @@ Plataforma SaaS de Gestión de Activos Físicos y Mantenimiento Operacional orie
 │   └── shared/               # DTOs, Tipos TypeScript compartidos, Esquemas de Zod
 ├── docker-compose.yml        # Orquestación de servicios locales (API, Web, PostgreSQL, Redis)
 └── README.md
+```
 
 ## Technical Stack Constraints & Known Pitfalls
 

@@ -12,8 +12,11 @@ import locationRoutes from './routes/location-routes'
 import reportRoutes from './routes/report-routes'
 import { initSocket } from './lib/socket'
 import { openapiDocument } from './docs/openapi'
+import { validateJwtSecrets } from './lib/jwt'
+import { errorMiddleware } from './middlewares/error-middleware'
 
 dotenv.config()
+validateJwtSecrets()
 
 export const app = express()
 export const httpServer = createServer(app)
@@ -47,6 +50,11 @@ app.use('/api/v1/assets', assetRoutes)
 app.use('/api/v1/categories', categoryRoutes)
 app.use('/api/v1/locations', locationRoutes)
 app.use('/api/v1/reports', reportRoutes)
+
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Ruta no encontrada', code: 'ROUTE_NOT_FOUND' })
+})
+app.use(errorMiddleware)
 
 if (process.env.NODE_ENV !== 'test') {
   httpServer.listen(PORT, () => {

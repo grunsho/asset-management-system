@@ -41,42 +41,44 @@ const updateAssetSchema = z
     message: 'Debe enviar al menos un campo para actualizar',
   })
 
-const assetQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
-  status: z.enum(AssetStatus).optional(),
-  categoryId: z.string().uuid().optional(),
-  locationId: z.string().uuid().optional(),
-  search: z.string().trim().optional(),
-  fromDate: z.coerce.date().optional(),
-  toDate: z.coerce.date().optional(),
-})
+const assetQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    status: z.enum(AssetStatus).optional(),
+    categoryId: z.string().uuid().optional(),
+    locationId: z.string().uuid().optional(),
+    search: z.string().trim().optional(),
+    fromDate: z.coerce.date().optional(),
+    toDate: z.coerce.date().optional(),
+  })
+  .refine(
+    ({ fromDate, toDate }) => !fromDate || !toDate || fromDate <= toDate,
+    {
+      path: ['toDate'],
+      message: 'La fecha final debe ser posterior o igual a la fecha inicial',
+    },
+  )
 
 // GET /api/v1/assets - Listar activos
-router.get('/', checkPermission('ASSET_READ'), async (req, res) => {
+router.get('/', checkPermission('ASSET_READ'), async (req, res, next) => {
   try {
     const query = assetQuerySchema.parse(req.query)
     const result = await AssetService.getAssets(query)
     res.json(result)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.issues })
-    }
-    res.status(500).json({ error: 'Error al consultar activos' })
+    next(error)
   }
 })
 
 // POST /api/v1/assets - Crear activo
-router.post('/', checkPermission('ASSET_CREATE'), async (req, res) => {
+router.post('/', checkPermission('ASSET_CREATE'), async (req, res, next) => {
   try {
     const validatedData = createAssetSchema.parse(req.body)
     const asset = await AssetService.createAsset(validatedData)
     res.status(201).json(asset)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.issues })
-    }
-    res.status(500).json({ error: 'Error al crear el activo' })
+    next(error)
   }
 })
 
@@ -84,7 +86,7 @@ router.post('/', checkPermission('ASSET_CREATE'), async (req, res) => {
 router.put(
   '/:id',
   checkPermission('ASSET_UPDATE'),
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response, next) => {
     try {
       const assetId = req.params.id as string
       const validatedData = updateAssetSchema.parse(req.body)
@@ -99,48 +101,40 @@ router.put(
         asset: updatedAsset,
       })
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.issues })
-      }
-      if (error instanceof Error && error.message === 'NOT_FOUND') {
-        return res.status(404).json({ error: 'Activo no encontrado' })
-      }
-      res.status(500).json({ error: 'Error al actualizar el activo' })
+      next(error)
     }
   },
 )
 
 // GET /api/v1/assets/:id - Detalle completo con historial
-router.get('/:id', checkPermission('ASSET_READ'), async (req, res) => {
+router.get('/:id', checkPermission('ASSET_READ'), async (req, res, next) => {
   try {
     const asset = await AssetService.getAssetById(req.params.id as string)
     res.json(asset)
   } catch (error) {
-    if (error instanceof Error && error.message === 'NOT_FOUND') {
-      return res.status(404).json({ error: 'Activo no encontrado' })
-    }
-    res.status(500).json({ error: 'Error al consultar el activo' })
+    next(error)
   }
 })
 
 // DELETE /api/v1/assets/:id - Eliminar activo
-router.delete('/:id', checkPermission('ASSET_DELETE'), async (req, res) => {
-  try {
-    await AssetService.deleteAsset(req.params.id as string)
-    res.json({ message: 'Activo eliminado con éxito' })
-  } catch (error) {
-    if (error instanceof Error && error.message === 'NOT_FOUND') {
-      return res.status(404).json({ error: 'Activo no encontrado' })
+router.delete(
+  '/:id',
+  checkPermission('ASSET_DELETE'),
+  async (req, res, next) => {
+    try {
+      await AssetService.deleteAsset(req.params.id as string)
+      res.json({ message: 'Activo eliminado con éxito' })
+    } catch (error) {
+      next(error)
     }
-    res.status(500).json({ error: 'Error al eliminar el activo' })
-  }
-})
+  },
+)
 
 // PATCH /api/v1/assets/:id/status - Cambiar estado con auditoría
 router.patch(
   '/:id/status',
   checkPermission('ASSET_UPDATE_STATUS'),
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response, next) => {
     try {
       const assetId = req.params.id as string
       const { status, reason } = updateStatusSchema.parse(req.body) as z.infer<
@@ -160,36 +154,23 @@ router.patch(
         asset: updatedAsset,
       })
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.issues })
-      }
-      if (error instanceof Error) {
-        if (error.message === 'NOT_FOUND') {
-          return res.status(404).json({ error: 'Activo no encontrado' })
-        }
-        if (error.message === 'SAME_STATUS') {
-          return res
-            .status(400)
-            .json({ error: 'El activo ya se encuentra en ese estado' })
-        }
-      }
-      res
-        .status(500)
-        .json({ error: 'Error al actualizar el estado del activo' })
+      next(error)
     }
   },
 )
 
 // GET /api/v1/assets/:id/logs - Obtener historial de auditoría de un activo
-router.get('/:id/logs', checkPermission('ASSET_READ'), async (req, res) => {
-  try {
-    const logs = await AssetService.getAssetLogs(req.params.id as string)
-    res.json(logs)
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: 'Error al obtener el historial de auditoría' })
-  }
-})
+router.get(
+  '/:id/logs',
+  checkPermission('ASSET_READ'),
+  async (req, res, next) => {
+    try {
+      const logs = await AssetService.getAssetLogs(req.params.id as string)
+      res.json(logs)
+    } catch (error) {
+      next(error)
+    }
+  },
+)
 
 export default router

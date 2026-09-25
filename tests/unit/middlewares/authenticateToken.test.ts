@@ -62,6 +62,7 @@ describe('authenticateToken', () => {
     expect(response.status).toHaveBeenCalledWith(403)
     expect(response.json).toHaveBeenCalledWith({
       error: 'Token inválido o expirado',
+      code: 'TOKEN_INVALID',
     })
     expect(next).not.toHaveBeenCalled()
   })
@@ -84,6 +85,7 @@ describe('authenticateToken', () => {
     expect(response.status).toHaveBeenCalledWith(403)
     expect(response.json).toHaveBeenCalledWith({
       error: 'Usuario inactivo o no encontrado',
+      code: 'USER_INACTIVE',
     })
     expect(next).not.toHaveBeenCalled()
   })
@@ -119,5 +121,25 @@ describe('authenticateToken', () => {
       permissions: ['ASSET_READ', 'ASSET_UPDATE_STATUS'],
     })
     expect(next).toHaveBeenCalledOnce()
+  })
+
+  it('propaga errores de base de datos en vez de tratarlos como token inválido', async () => {
+    const response = createResponse()
+    const next = vi.fn()
+    const databaseError = new Error('database unavailable')
+    mocks.verifyAccessToken.mockReturnValue({
+      userId: 'operator-id',
+      role: 'OPERATOR',
+    })
+    mocks.findUser.mockRejectedValue(databaseError)
+
+    await authenticateToken(
+      { headers: { authorization: 'Bearer valid-token' } } as never,
+      response as never,
+      next,
+    )
+
+    expect(next).toHaveBeenCalledWith(databaseError)
+    expect(response.status).not.toHaveBeenCalled()
   })
 })

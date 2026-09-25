@@ -75,6 +75,75 @@ const login = async (email: string, password: string) => {
 }
 
 describe('API de activos - integración HTTP', () => {
+  it('normaliza errores de validación, conflicto y ruta inexistente', async () => {
+    const token = await login('admin@ams.com', 'Admin123!')
+
+    const invalidQuery = await api
+      .get('/api/v1/assets')
+      .query({ limit: 101 })
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(invalidQuery.status).toBe(400)
+    expect(invalidQuery.body).toMatchObject({
+      error: 'La solicitud contiene datos inválidos',
+      code: 'VALIDATION_ERROR',
+    })
+    expect(invalidQuery.body.details).toEqual(expect.any(Array))
+
+    const invalidDateRange = await api
+      .get('/api/v1/reports/metrics')
+      .query({ fromDate: '2026-03-01', toDate: '2026-02-01' })
+      .set('Authorization', `Bearer ${token}`)
+    expect(invalidDateRange.status).toBe(400)
+    expect(invalidDateRange.body.code).toBe('VALIDATION_ERROR')
+
+    const tagCode = `DUPLICATE-${Date.now()}`
+    const assetResponse = await api
+      .post('/api/v1/assets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        tagCode,
+        name: 'Activo para validar conflicto',
+        categoryId,
+        locationId,
+      })
+    expect(assetResponse.status).toBe(201)
+    assetId = assetResponse.body.id
+
+    const duplicateResponse = await api
+      .post('/api/v1/assets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        tagCode,
+        name: 'TAG duplicado',
+        categoryId,
+        locationId,
+      })
+
+    expect(duplicateResponse.status).toBe(409)
+    expect(duplicateResponse.body).toMatchObject({
+      error: 'Ya existe un registro con esos datos',
+      code: 'CONFLICT',
+    })
+
+    const missingRoute = await api.get('/api/v1/not-a-route')
+    expect(missingRoute.status).toBe(404)
+    expect(missingRoute.body).toEqual({
+      error: 'Ruta no encontrada',
+      code: 'ROUTE_NOT_FOUND',
+    })
+
+    const invalidJson = await api
+      .post('/api/v1/auth/login')
+      .set('Content-Type', 'application/json')
+      .send('{"email":')
+    expect(invalidJson.status).toBe(400)
+    expect(invalidJson.body).toEqual({
+      error: 'El cuerpo JSON no es válido',
+      code: 'INVALID_JSON',
+    })
+  })
+
   it('sirve Swagger UI y el documento OpenAPI', async () => {
     const docsResponse = await api.get('/api/docs/')
     const openapiResponse = await api.get('/api/docs.json')

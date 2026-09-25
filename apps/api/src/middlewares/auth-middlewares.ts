@@ -16,13 +16,22 @@ export const authenticateToken = async (
   const token = authHeader && authHeader.split(' ')[1]
 
   if (!token) {
+    return res.status(401).json({
+      error: 'Acceso no autorizado: Token no proporcionado',
+      code: 'TOKEN_REQUIRED',
+    })
+  }
+
+  let decoded: TokenPayload
+  try {
+    decoded = verifyAccessToken(token)
+  } catch (error) {
     return res
-      .status(401)
-      .json({ error: 'Acceso no autorizado: Token no proporcionado' })
+      .status(403)
+      .json({ error: 'Token inválido o expirado', code: 'TOKEN_INVALID' })
   }
 
   try {
-    const decoded = verifyAccessToken(token)
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
@@ -37,7 +46,10 @@ export const authenticateToken = async (
     })
 
     if (!user || !user.isActive) {
-      return res.status(403).json({ error: 'Usuario inactivo o no encontrado' })
+      return res.status(403).json({
+        error: 'Usuario inactivo o no encontrado',
+        code: 'USER_INACTIVE',
+      })
     }
 
     const permissions = user.role.permissions.map((p) => p.permission.code)
@@ -50,14 +62,19 @@ export const authenticateToken = async (
 
     next()
   } catch (error) {
-    return res.status(403).json({ error: 'Token inválido o expirado' })
+    next(error)
   }
 }
 
 export const checkPermission = (requiredPermission: string) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Usuario no encontrado' })
+      return res
+        .status(401)
+        .json({
+          error: 'Usuario no encontrado',
+          code: 'AUTHENTICATION_REQUIRED',
+        })
     }
 
     const isAdmin = req.user.role === 'ADMIN'
@@ -67,6 +84,7 @@ export const checkPermission = (requiredPermission: string) => {
     if (!hasPermission) {
       return res.status(403).json({
         error: `Permiso insuficiente. Requiere: ${requiredPermission}`,
+        code: 'PERMISSION_DENIED',
       })
     }
 

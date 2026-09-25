@@ -15,19 +15,19 @@ const createLocationSchema = z.object({
 })
 
 // GET /api/v1/locations - Listar ubicaciones
-router.get('/', checkPermission('ASSET_READ'), async (req, res) => {
+router.get('/', checkPermission('ASSET_READ'), async (req, res, next) => {
   try {
     const locations = await prisma.location.findMany({
       orderBy: { name: 'asc' },
     })
     res.json(locations)
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener ubicaciones' })
+    next(error)
   }
 })
 
 // POST /api/v1/locations - Crear ubicación
-router.post('/', checkPermission('ASSET_CREATE'), async (req, res) => {
+router.post('/', checkPermission('ASSET_CREATE'), async (req, res, next) => {
   try {
     const { name } = createLocationSchema.parse(req.body)
 
@@ -37,10 +37,7 @@ router.post('/', checkPermission('ASSET_CREATE'), async (req, res) => {
 
     res.status(201).json(location)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.issues })
-    }
-    res.status(500).json({ error: 'Error al crear la ubicación' })
+    next(error)
   }
 })
 

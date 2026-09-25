@@ -10,15 +10,31 @@ import { AssetStatus } from '@prisma/client'
 
 const router = Router()
 
-const reportQuerySchema = z.object({
-  format: z.literal('csv'),
+const reportFilterFields = {
   status: z.enum(AssetStatus).optional(),
   categoryId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
   search: z.string().trim().optional(),
   fromDate: z.coerce.date().optional(),
   toDate: z.coerce.date().optional(),
-})
+}
+
+const withDateRangeValidation = <T extends z.ZodType>(schema: T) =>
+  schema.refine(
+    (query: any) =>
+      !query.fromDate || !query.toDate || query.fromDate <= query.toDate,
+    {
+      path: ['toDate'],
+      message: 'La fecha final debe ser posterior o igual a la fecha inicial',
+    },
+  )
+
+const reportQuerySchema = withDateRangeValidation(
+  z.object({ format: z.literal('csv'), ...reportFilterFields }),
+)
+const reportMetricsQuerySchema = withDateRangeValidation(
+  z.object(reportFilterFields),
+)
 
 // GET /api/v1/reports/export?format=csv
 router.get(
@@ -75,9 +91,6 @@ router.get(
 
       return res.status(200).send(csvContent)
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.issues })
-      }
       next(error)
     }
   },
@@ -89,13 +102,10 @@ router.get(
   checkPermission('ASSET_READ'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const query = reportQuerySchema.omit({ format: true }).parse(req.query)
+      const query = reportMetricsQuerySchema.parse(req.query)
       const metrics = await AssetService.getAssetMetrics(query)
       res.json(metrics)
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.issues })
-      }
       next(error)
     }
   },

@@ -7,11 +7,13 @@ Sistema modular y escalable para la gestión de activos físicos, mantenimiento 
 ## 🛠️ Tech Stack & Arquitectura
 
 ### Monorepo & Herramientas
+
 - **Package Manager**: npm workspaces (`apps/*`, `packages/*`).
 - **Lenguaje**: TypeScript (v5.5+) con configuración de path mapping estricto (`paths` sin `baseUrl`).
 - **Orquestación local**: Docker & Docker Compose para servicios de infraestructura (PostgreSQL, Redis).
 
 ### Backend (`apps/api`)
+
 - **Runtime**: Node.js + Express.
 - **ORM / Database**: Prisma v6 + PostgreSQL.
 - **Cache & Pub/Sub**: Redis.
@@ -20,6 +22,7 @@ Sistema modular y escalable para la gestión de activos físicos, mantenimiento 
 - **Validación de Datos**: Zod.
 
 ### Frontend (`apps/web`)
+
 - **Framework**: React 19 + Vite.
 - **Estilos**: Tailwind CSS v4 con integración `@tailwindcss/postcss`.
 - **Estado & Red**: Axios con interceptores automáticos para renovación de sesiones (Refresh Token Flow), Context API.
@@ -53,11 +56,13 @@ Sistema modular y escalable para la gestión de activos físicos, mantenimiento 
 ├── AGENTS.md                 # Convenciones técnicas y restricciones para LLMs/Agentes
 └── README.md
 ```
+
 ---
 
 ## 🚀 Guía de Instalación y Configuración Local
 
 ### 1. Requisitos Previos
+
 - **Node.js**: v18.x o superior
 - **npm**: v9.x o superior
 - **Docker & Docker Compose** (para PostgreSQL y Redis local)
@@ -75,18 +80,20 @@ Crea el archivo `.env` dentro de `apps/api/` con el siguiente contenido:
 ```
 PORT=4000
 NODE_ENV=development
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/asset_management?schema=public"
+DATABASE_URL="postgresql://ams_user:ams_password@localhost:5432/ams_db?schema=public"
 REDIS_URL="redis://localhost:6379"
 JWT_SECRET="desarrollo_jwt_access_secret_123"
-REFRESH_TOKEN_SECRET="desarrollo_jwt_refresh_secret_123"
+JWT_REFRESH_SECRET="desarrollo_jwt_refresh_secret_123"
 ```
+
+La API requiere ambos secretos JWT en todos los entornos. En producción, cada secreto debe tener al menos 32 caracteres. Los errores siguen el formato `{ error, code, details? }`.
 
 ### 4. Base de Datos & Migraciones
 
 Levanta PostgreSQL en Docker desde la raíz:
 `docker-compose up -d`
 
-Ejecuta las migraciones y el seeder dentro de `apps/api`:  
+Ejecuta las migraciones y el seeder dentro de `apps/api`:
 
 `cd apps/api`  
 `npx prisma migrate dev`  
@@ -108,9 +115,9 @@ Ejecuta las migraciones y el seeder dentro de `apps/api`:
 
 ## 🔑 Credenciales por Defecto (Entorno de Desarrollo)
 
-| Rol | Correo Electrónico | Contraseña |
-| :--- | :--- | :--- |
-| **Administrador (Full RBAC)** | admin@ams.com | Admin123! |
+| Rol                           | Correo Electrónico | Contraseña |
+| :---------------------------- | :----------------- | :--------- |
+| **Administrador (Full RBAC)** | admin@ams.com      | Admin123!  |
 
 ⚠️ Nota de Seguridad: Credenciales exclusivas para pruebas locales en entornos de desarrollo.
 

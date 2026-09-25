@@ -11,6 +11,7 @@ import {
   authenticateToken,
   AuthenticatedRequest,
 } from '../middlewares/auth-middlewares'
+import { HttpError } from '../middlewares/error-middleware'
 
 const router = Router()
 
@@ -27,7 +28,7 @@ const getPermissionCodes = (role: {
 }
 
 // POST /api/v1/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = loginSchema.parse(req.body)
 
@@ -45,12 +46,16 @@ router.post('/login', async (req, res) => {
     })
 
     if (!user || !user.isActive) {
-      return res.status(401).json({ error: 'Credenciales inválidas' })
+      return res
+        .status(401)
+        .json({ error: 'Credenciales inválidas', code: 'INVALID_CREDENTIALS' })
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash)
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Credenciales inválidas' })
+      return res
+        .status(401)
+        .json({ error: 'Credenciales inválidas', code: 'INVALID_CREDENTIALS' })
     }
 
     const permissions = getPermissionCodes(user.role)
@@ -83,23 +88,20 @@ router.post('/login', async (req, res) => {
       },
     })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.issues })
-    }
-    console.error('Error detallado durante el login:', error)
-    return res
-      .status(500)
-      .json({ error: 'Error en el servidor durante el login' })
+    next(error)
   }
 })
 
 // POST /api/v1/auth/refresh (Renovación de Access Token vía Cookie)
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', async (req, res, next) => {
   try {
     const refreshToken = req.cookies?.refreshToken
 
     if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token no proporcionado' })
+      return res.status(401).json({
+        error: 'Refresh token no proporcionado',
+        code: 'REFRESH_TOKEN_MISSING',
+      })
     }
 
     const payload = verifyRefreshToken(refreshToken) as {
@@ -128,7 +130,9 @@ router.post('/refresh', async (req, res) => {
     })
 
     if (!user || !user.isActive) {
-      return res.status(403).json({ error: 'Usuario inactivo o no encontrado' })
+      return next(
+        new HttpError(403, 'USER_INACTIVE', 'Usuario inactivo o no encontrado'),
+      )
     }
 
     const permissions = getPermissionCodes(user.role)
@@ -140,9 +144,7 @@ router.post('/refresh', async (req, res) => {
 
     return res.json({ accessToken: newAccessToken, permissions })
   } catch (error) {
-    return res
-      .status(403)
-      .json({ error: 'Error al procesar el token de refresco' })
+    next(error)
   }
 })
 
@@ -160,7 +162,7 @@ router.post('/logout', (_req, res) => {
 router.get(
   '/me',
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response, next) => {
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.user?.userId },
@@ -176,7 +178,7 @@ router.get(
       })
 
       if (!user) {
-        return res.status(404).json({ error: 'Usuario no encontrado' })
+        throw new HttpError(404, 'USER_NOT_FOUND', 'Usuario no encontrado')
       }
 
       res.json({
@@ -187,7 +189,7 @@ router.get(
         permissions: req.user?.permissions || [],
       })
     } catch (error) {
-      res.status(500).json({ error: 'Error al obtener datos del usuario' })
+      next(error)
     }
   },
 )
