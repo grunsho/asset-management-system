@@ -1,4 +1,4 @@
-import { PrismaClient, RoleName, AssetStatus } from '@prisma/client'
+import { PrismaClient, RoleName } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -99,8 +99,20 @@ async function main() {
   }
 
   // 4. Crear usuario Admin inicial
-  const adminEmail = 'admin@ams.com'
-  const hashedPassword = await bcrypt.hash('Admin123!', 10)
+  const adminEmail =
+    process.env.ADMIN_EMAIL ||
+    (process.env.NODE_ENV === 'production' ? undefined : 'admin@ams.com')
+  const adminPassword =
+    process.env.ADMIN_PASSWORD ||
+    (process.env.NODE_ENV === 'production' ? undefined : 'Admin123!')
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error(
+      'Set ADMIN_EMAIL and ADMIN_PASSWORD before seeding in production',
+    )
+  }
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 12)
 
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -115,7 +127,7 @@ async function main() {
   })
 
   // 5. Crear Categorías y Ubicaciones Iniciales para Pruebas
-  const category = await prisma.category.upsert({
+  await prisma.category.upsert({
     where: { name: 'Maquinaria Pesada' },
     update: {},
     create: {
@@ -124,7 +136,7 @@ async function main() {
     },
   })
 
-  const location = await prisma.location.upsert({
+  await prisma.location.upsert({
     where: { name: 'Planta Principal' },
     update: {},
     create: {
@@ -134,9 +146,7 @@ async function main() {
   })
 
   console.log('✅ Seeding completado con éxito!')
-  console.log(
-    `👤 Usuario Admin Creado: ${adminUser.email} (Password: Admin123!)`,
-  )
+  console.log(`👤 Usuario Admin disponible: ${adminUser.email}`)
 }
 
 main()

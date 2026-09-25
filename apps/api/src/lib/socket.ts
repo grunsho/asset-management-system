@@ -53,7 +53,7 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
         permissions,
       }
       next()
-    } catch (error) {
+    } catch {
       next(new Error('Token inválido o expirado'))
     }
   })

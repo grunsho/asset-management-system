@@ -14,6 +14,8 @@ import {
 import { HttpError } from '../middlewares/error-middleware'
 
 const router = Router()
+const getRefreshCookieSameSite = () =>
+  process.env.NODE_ENV === 'production' ? 'none' : 'lax'
 
 // Esquema de validación para login usando Zod
 const loginSchema = z.object({
@@ -71,7 +73,7 @@ router.post('/login', async (req, res, next) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: getRefreshCookieSameSite(),
       maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
@@ -153,7 +155,7 @@ router.post('/logout', (_req, res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: getRefreshCookieSameSite(),
   })
   res.json({ message: 'Sesión cerrada con éxito' })
 })

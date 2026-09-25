@@ -81,6 +81,24 @@ const login = async (email: string, password: string) => {
 }
 
 describe('API de activos - integración HTTP', () => {
+  it('configura la cookie refresh para Vercel/Render en producción', async () => {
+    const previousNodeEnv = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+
+    try {
+      const response = await api
+        .post('/api/v1/auth/login')
+        .send({ email: 'admin@ams.com', password: 'Admin123!' })
+
+      expect(response.status).toBe(200)
+      expect(response.headers['set-cookie'][0]).toMatch(/SameSite=None/i)
+      expect(response.headers['set-cookie'][0]).toMatch(/Secure/i)
+      expect(response.headers['set-cookie'][0]).toMatch(/HttpOnly/i)
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv
+    }
+  })
+
   it('administra usuarios solo con USER_MANAGE y protege al último administrador', async () => {
     const adminToken = await login('admin@ams.com', 'Admin123!')
     const rolesResponse = await api

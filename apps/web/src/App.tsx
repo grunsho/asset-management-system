@@ -25,18 +25,18 @@ export function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path='/login' element={<LoginPage />} />
+          <Route path="/login" element={<LoginPage />} />
 
           {/* Rutas Protegidas por Autenticación y Permisos RBAC */}
-          <Route element={<ProtectedRoute requiredPermission='ASSET_READ' />}>
-            <Route path='/dashboard' element={<DashboardPage />} />
+          <Route element={<ProtectedRoute requiredPermission="ASSET_READ" />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
           </Route>
-          <Route element={<ProtectedRoute requiredPermission='USER_MANAGE' />}>
-            <Route path='/admin/users' element={<UserManagementPage />} />
+          <Route element={<ProtectedRoute requiredPermission="USER_MANAGE" />}>
+            <Route path="/admin/users" element={<UserManagementPage />} />
           </Route>
 
           {/* Redirección por defecto */}
-          <Route path='*' element={<Navigate to='/dashboard' replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

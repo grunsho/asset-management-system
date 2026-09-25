@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Instancia global de Axios
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -76,8 +76,9 @@ api.interceptors.response.use(
 
       try {
         // Intentar renovar el Access Token usando la cookie HTTP-Only
+        const refreshUrl = `${api.defaults.baseURL?.replace(/\/$/, '')}/auth/refresh`
         const { data } = await axios.post(
-          '/api/v1/auth/refresh',
+          refreshUrl,
           {},
           { withCredentials: true },
         )

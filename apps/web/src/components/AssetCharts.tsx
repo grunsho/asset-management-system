@@ -68,21 +68,21 @@ export const AssetCharts: React.FC<AssetChartProps> = ({ assets, metrics }) => {
       }))
 
   return (
-    <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 my-6'>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 my-6">
       {/* Distribución por Estado */}
-      <div className='bg-slate-900/60 border border-slate-800 rounded-xl p-5'>
-        <h3 className='text-sm font-semibold text-slate-300 mb-4'>
+      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-slate-300 mb-4">
           Distribución por Estado
         </h3>
-        <div className='h-64 w-full'>
-          <ResponsiveContainer width='100%' height='100%'>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={statusData}
-                dataKey='value'
-                nameKey='name'
-                cx='50%'
-                cy='50%'
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
                 outerRadius={80}
                 innerRadius={50}
                 paddingAngle={4}
@@ -111,15 +111,15 @@ export const AssetCharts: React.FC<AssetChartProps> = ({ assets, metrics }) => {
       </div>
 
       {/* Activos por Ubicación */}
-      <div className='bg-slate-900/60 border border-slate-800 rounded-xl p-5'>
-        <h3 className='text-sm font-semibold text-slate-300 mb-4'>
+      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-slate-300 mb-4">
           Activos por Ubicación
         </h3>
-        <div className='h-64 w-full'>
-          <ResponsiveContainer width='100%' height='100%'>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={locationData}>
-              <XAxis dataKey='name' stroke='#64748b' fontSize={12} />
-              <YAxis allowDecimals={false} stroke='#64748b' fontSize={12} />
+              <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
+              <YAxis allowDecimals={false} stroke="#64748b" fontSize={12} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: '#0f172a',
@@ -128,7 +128,7 @@ export const AssetCharts: React.FC<AssetChartProps> = ({ assets, metrics }) => {
                   color: '#fff',
                 }}
               />
-              <Bar dataKey='count' fill='#0284c7' radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill="#0284c7" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

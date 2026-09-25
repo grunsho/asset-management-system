@@ -19,10 +19,10 @@ const renderProtectedRoute = () =>
   render(
     <MemoryRouter initialEntries={['/protected']}>
       <Routes>
-        <Route element={<ProtectedRoute requiredPermission='ASSET_READ' />}>
-          <Route path='/protected' element={<p>Contenido protegido</p>} />
+        <Route element={<ProtectedRoute requiredPermission="ASSET_READ" />}>
+          <Route path="/protected" element={<p>Contenido protegido</p>} />
         </Route>
-        <Route path='/login' element={<p>Pantalla de login</p>} />
+        <Route path="/login" element={<p>Pantalla de login</p>} />
       </Routes>
     </MemoryRouter>,
   )

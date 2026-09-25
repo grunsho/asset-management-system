@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setUser(normalizedUser)
         setPermissions(meRes.data.permissions || data.permissions || [])
-      } catch (error) {
+      } catch {
         setUser(null)
         setPermissions([])
         setAccessToken(null)

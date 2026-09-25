@@ -135,96 +135,96 @@ export const AssetModal: React.FC<AssetModalProps> = ({
 
   return (
     <>
-      <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4'>
-        <div className='bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden'>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
           {/* Header */}
-          <div className='px-6 py-4 border-b border-slate-800 flex items-center justify-between'>
-            <h2 className='text-lg font-bold text-white'>
+          <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white">
               {assetToEdit ? 'Editar Activo' : 'Nuevo Activo Físico'}
             </h2>
             <button
               onClick={onClose}
-              className='text-slate-400 hover:text-white transition-colors text-sm font-mono cursor-pointer'
+              className="text-slate-400 hover:text-white transition-colors text-sm font-mono cursor-pointer"
             >
               ✕
             </button>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className='p-6 space-y-4'>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {errorMessage && (
               <div
-                role='alert'
-                className='p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400 font-medium'
+                role="alert"
+                className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400 font-medium"
               >
                 ⚠️ {errorMessage}
               </div>
             )}
 
-            <div className='grid grid-cols-2 gap-4'>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className='block text-xs font-semibold uppercase text-slate-400 mb-1'>
+                <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
                   Código TAG
                 </label>
                 <input
-                  type='text'
+                  type="text"
                   required
                   value={formData.tagCode}
                   onChange={(e) =>
                     setFormData({ ...formData, tagCode: e.target.value })
                   }
-                  placeholder='Ej. PUMP-01'
-                  className='w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500 font-mono'
+                  placeholder="Ej. PUMP-01"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500 font-mono"
                 />
               </div>
 
               <div>
-                <label className='block text-xs font-semibold uppercase text-slate-400 mb-1'>
+                <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
                   Número de Serie
                 </label>
                 <input
-                  type='text'
+                  type="text"
                   value={formData.serialNumber}
                   onChange={(e) =>
                     setFormData({ ...formData, serialNumber: e.target.value })
                   }
-                  placeholder='Ej. SN-987654321'
-                  className='w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500 font-mono'
+                  placeholder="Ej. SN-987654321"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500 font-mono"
                 />
               </div>
             </div>
 
             <div>
-              <label className='block text-xs font-semibold uppercase text-slate-400 mb-1'>
+              <label className="block text-xs font-semibold uppercase text-slate-400 mb-1">
                 Nombre / Descripción
               </label>
               <input
-                type='text'
+                type="text"
                 required
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder='Ej. Bomba Centrífuga Principal 50HP'
-                className='w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
+                placeholder="Ej. Bomba Centrífuga Principal 50HP"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500"
               />
             </div>
 
-            <div className='grid grid-cols-2 gap-4'>
+            <div className="grid grid-cols-2 gap-4">
               {/* Categoría */}
               <div>
-                <div className='flex items-center justify-between mb-1'>
-                  <label className='block text-xs font-semibold uppercase text-slate-400'>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold uppercase text-slate-400">
                     Categoría
                   </label>
                   <button
-                    type='button'
+                    type="button"
                     onClick={() =>
                       setAttributeModal({ isOpen: true, type: 'category' })
                     }
-                    className='text-[10px] font-medium text-sky-400 hover:text-sky-300 flex items-center gap-0.5 cursor-pointer'
+                    className="text-[10px] font-medium text-sky-400 hover:text-sky-300 flex items-center gap-0.5 cursor-pointer"
                   >
-                    <Plus className='w-3 h-3' /> Nueva
+                    <Plus className="w-3 h-3" /> Nueva
                   </button>
                 </div>
                 <select
@@ -233,9 +233,9 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                   onChange={(e) =>
                     setFormData({ ...formData, categoryId: e.target.value })
                   }
-                  className='w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500"
                 >
-                  <option value=''>Seleccionar Categoría</option>
+                  <option value="">Seleccionar Categoría</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
@@ -246,18 +246,18 @@ export const AssetModal: React.FC<AssetModalProps> = ({
 
               {/* Ubicación */}
               <div>
-                <div className='flex items-center justify-between mb-1'>
-                  <label className='block text-xs font-semibold uppercase text-slate-400'>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold uppercase text-slate-400">
                     Ubicación
                   </label>
                   <button
-                    type='button'
+                    type="button"
                     onClick={() =>
                       setAttributeModal({ isOpen: true, type: 'location' })
                     }
-                    className='text-[10px] font-medium text-sky-400 hover:text-sky-300 flex items-center gap-0.5 cursor-pointer'
+                    className="text-[10px] font-medium text-sky-400 hover:text-sky-300 flex items-center gap-0.5 cursor-pointer"
                   >
-                    <Plus className='w-3 h-3' /> Nueva
+                    <Plus className="w-3 h-3" /> Nueva
                   </button>
                 </div>
                 <select
@@ -266,9 +266,9 @@ export const AssetModal: React.FC<AssetModalProps> = ({
                   onChange={(e) =>
                     setFormData({ ...formData, locationId: e.target.value })
                   }
-                  className='w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500'
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-sky-500"
                 >
-                  <option value=''>Seleccionar Ubicación</option>
+                  <option value="">Seleccionar Ubicación</option>
                   {locations.map((loc) => (
                     <option key={loc.id} value={loc.id}>
                       {loc.name}
@@ -279,18 +279,18 @@ export const AssetModal: React.FC<AssetModalProps> = ({
             </div>
 
             {/* Footer Buttons */}
-            <div className='flex items-center justify-end gap-3 pt-4 border-t border-slate-800'>
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
               <button
-                type='button'
+                type="button"
                 onClick={onClose}
-                className='px-4 py-2 text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer'
+                className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
-                type='submit'
+                type="submit"
                 disabled={isSubmitting}
-                className='px-4 py-2 text-xs font-medium text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-50 rounded-lg shadow-lg shadow-sky-600/20 transition-all cursor-pointer'
+                className="px-4 py-2 text-xs font-medium text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-50 rounded-lg shadow-lg shadow-sky-600/20 transition-all cursor-pointer"
               >
                 {isSubmitting
                   ? 'Guardando...'

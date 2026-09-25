@@ -25,7 +25,7 @@ export const authenticateToken = async (
   let decoded: TokenPayload
   try {
     decoded = verifyAccessToken(token)
-  } catch (error) {
+  } catch {
     return res
       .status(403)
       .json({ error: 'Token inválido o expirado', code: 'TOKEN_INVALID' })
@@ -69,12 +69,10 @@ export const authenticateToken = async (
 export const checkPermission = (requiredPermission: string) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res
-        .status(401)
-        .json({
-          error: 'Usuario no encontrado',
-          code: 'AUTHENTICATION_REQUIRED',
-        })
+      return res.status(401).json({
+        error: 'Usuario no encontrado',
+        code: 'AUTHENTICATION_REQUIRED',
+      })
     }
 
     const isAdmin = req.user.role === 'ADMIN'

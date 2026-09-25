@@ -63,7 +63,7 @@ Sistema modular y escalable para la gestión de activos físicos, mantenimiento 
 
 ### 1. Requisitos Previos
 
-- **Node.js**: v18.x o superior
+- **Node.js**: v22.x o superior
 - **npm**: v9.x o superior
 - **Docker & Docker Compose** (para PostgreSQL y Redis local)
 
@@ -108,6 +108,41 @@ Con PostgreSQL iniciado, migraciones aplicadas y seed ejecutado, instala Chromiu
 `npm run test:e2e`
 
 La prueba usa la cuenta local `admin@ams.com` / `Admin123!`.
+
+### 6. Calidad, CI y contenedores
+
+Ejecuta localmente las puertas de calidad:
+
+`npm run lint`
+
+`npm run format:check`
+
+`npm test`
+
+`npm run test:e2e`
+
+El workflow `.github/workflows/ci.yml` ejecuta esas verificaciones, el build y las imágenes Docker en pull requests y pushes a `main`. Los pushes a `main` y tags `v*` publican las imágenes backend/web en GitHub Container Registry.
+
+Para Compose de producción, configura un archivo de entorno privado basado en `.env.production.example` y ejecuta:
+
+`docker compose --env-file .env.production -f docker-compose.production.yml up --build -d`
+
+La API espera a que finalicen las migraciones. El primer administrador no se crea automáticamente con una contraseña por defecto; créalo explícitamente con:
+
+`docker compose --env-file .env.production -f docker-compose.production.yml --profile bootstrap run --rm bootstrap-admin`
+
+Las imágenes se construyen con etapas separadas. La UI se sirve por Nginx y enruta `/api/` a la API. El workflow publica las imágenes en GHCR, pero no despliega a una cuenta cloud específica.
+
+### 7. Despliegue Render + Vercel
+
+1. Importa el repositorio en Render usando `render.yaml`. Render crea la API Node y PostgreSQL, genera los secretos JWT y aplica migraciones al iniciar.
+2. Importa el repositorio en Vercel desde la raíz; `vercel.json` configura el build de `apps/web` y el fallback de rutas SPA.
+3. En Vercel, configura `VITE_API_BASE_URL` como `https://<URL-REAL-DE-RENDER>/api/v1` y `VITE_SOCKET_URL` como `https://<URL-REAL-DE-RENDER>`, luego redeploya la web.
+4. En Render, configura `CLIENT_URL` con el dominio de producción de Vercel. Debe ser el origen exacto, sin ruta final.
+
+Render y Vercel son orígenes distintos: el refresh token usa cookie `SameSite=None; Secure` en producción y la API limita CORS a `CLIENT_URL`. La base de datos usa el connection string interno de Render. No reutilices las credenciales del seed local; para Render, configura `ADMIN_EMAIL` y `ADMIN_PASSWORD` como secretos temporales y ejecuta `npm exec --workspace=apps/api prisma db seed` desde Render Shell. Después puedes retirar esos dos secretos.
+
+Los dominios por defecto (`*.vercel.app` y `*.onrender.com`) son sitios distintos; los navegadores que bloquean cookies de terceros pueden impedir el refresh de sesión. Para producción estable, usa dominios propios del mismo sitio (por ejemplo, `app.example.com` y `api.example.com`) y configura `CLIENT_URL`/`VITE_*` con esos orígenes.
 
 ---
 

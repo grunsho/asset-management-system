@@ -29,7 +29,7 @@ export default defineConfig({
   resolve: {
     // Configuración de alias de rutas
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
 })
