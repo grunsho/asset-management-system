@@ -8,6 +8,7 @@ let categoryId: string
 let locationId: string
 let operatorId: string
 let operatorEmail: string
+let managedUserId: string | undefined
 let assetId: string | undefined
 
 beforeAll(async () => {
@@ -57,6 +58,11 @@ afterEach(async () => {
 })
 
 afterAll(async () => {
+  if (managedUserId) {
+    await prisma.user
+      .delete({ where: { id: managedUserId } })
+      .catch(() => undefined)
+  }
   if (operatorId) {
     await prisma.user
       .delete({ where: { id: operatorId } })
@@ -75,6 +81,65 @@ const login = async (email: string, password: string) => {
 }
 
 describe('API de activos - integración HTTP', () => {
+  it('administra usuarios solo con USER_MANAGE y protege al último administrador', async () => {
+    const adminToken = await login('admin@ams.com', 'Admin123!')
+    const rolesResponse = await api
+      .get('/api/v1/users/roles')
+      .set('Authorization', `Bearer ${adminToken}`)
+    const usersResponse = await api
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+
+    expect(rolesResponse.status).toBe(200)
+    expect(
+      rolesResponse.body.map((role: { name: string }) => role.name),
+    ).toEqual(expect.arrayContaining(['ADMIN', 'OPERATOR', 'VIEWER']))
+    expect(usersResponse.status).toBe(200)
+    expect(usersResponse.body[0]).not.toHaveProperty('passwordHash')
+
+    const operatorToken = await login(operatorEmail, 'Operator123!')
+    const forbiddenUsers = await api
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${operatorToken}`)
+    expect(forbiddenUsers.status).toBe(403)
+    expect(forbiddenUsers.body.code).toBe('PERMISSION_DENIED')
+
+    const viewerRole = rolesResponse.body.find(
+      (role: { name: string }) => role.name === 'VIEWER',
+    )
+    const createResponse = await api
+      .post('/api/v1/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: `managed-${Date.now()}@integration.test`,
+        firstName: 'Managed',
+        lastName: 'Account',
+        password: 'SecurePass123!',
+        roleId: viewerRole.id,
+      })
+
+    expect(createResponse.status).toBe(201)
+    expect(createResponse.body).not.toHaveProperty('passwordHash')
+    managedUserId = createResponse.body.id
+
+    const deactivateResponse = await api
+      .patch(`/api/v1/users/${managedUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ isActive: false })
+    expect(deactivateResponse.status).toBe(200)
+    expect(deactivateResponse.body.isActive).toBe(false)
+
+    const adminUser = await prisma.user.findUnique({
+      where: { email: 'admin@ams.com' },
+    })
+    const disableLastAdmin = await api
+      .patch(`/api/v1/users/${adminUser.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ isActive: false })
+    expect(disableLastAdmin.status).toBe(409)
+    expect(disableLastAdmin.body.code).toBe('LAST_ACTIVE_ADMIN')
+  })
+
   it('normaliza errores de validación, conflicto y ruta inexistente', async () => {
     const token = await login('admin@ams.com', 'Admin123!')
 

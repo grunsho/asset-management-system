@@ -10,6 +10,7 @@ import assetRoutes from './routes/asset-routes'
 import categoryRoutes from './routes/category-routes'
 import locationRoutes from './routes/location-routes'
 import reportRoutes from './routes/report-routes'
+import userRoutes from './routes/user-routes'
 import { initSocket } from './lib/socket'
 import { openapiDocument } from './docs/openapi'
 import { validateJwtSecrets } from './lib/jwt'
@@ -50,6 +51,7 @@ app.use('/api/v1/assets', assetRoutes)
 app.use('/api/v1/categories', categoryRoutes)
 app.use('/api/v1/locations', locationRoutes)
 app.use('/api/v1/reports', reportRoutes)
+app.use('/api/v1/users', userRoutes)
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada', code: 'ROUTE_NOT_FOUND' })

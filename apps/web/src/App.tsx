@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { UserManagementPage } from './pages/UserManagementPage'
 
 // // Vista de Dashboard temporal para probar autenticación
 // function DashboardPlaceholder() {
@@ -25,10 +26,13 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path='/login' element={<LoginPage />} />
-          
+
           {/* Rutas Protegidas por Autenticación y Permisos RBAC */}
           <Route element={<ProtectedRoute requiredPermission='ASSET_READ' />}>
             <Route path='/dashboard' element={<DashboardPage />} />
+          </Route>
+          <Route element={<ProtectedRoute requiredPermission='USER_MANAGE' />}>
+            <Route path='/admin/users' element={<UserManagementPage />} />
           </Route>
 
           {/* Redirección por defecto */}

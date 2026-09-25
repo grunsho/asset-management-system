@@ -116,9 +116,10 @@ export const AssetModal: React.FC<AssetModalProps> = ({
     } catch (error: any) {
       console.error('Error al guardar el activo:', error)
       const serverError = error.response?.data?.error
+      const validationDetails = error.response?.data?.details
 
-      if (Array.isArray(serverError)) {
-        const issues = serverError
+      if (Array.isArray(validationDetails) || Array.isArray(serverError)) {
+        const issues = (validationDetails || serverError)
           .map((i: any) => `${i.path?.join('.') || 'campo'}: ${i.message}`)
           .join(', ')
         setErrorMessage(issues)
@@ -136,7 +137,6 @@ export const AssetModal: React.FC<AssetModalProps> = ({
     <>
       <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4'>
         <div className='bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden'>
-          
           {/* Header */}
           <div className='px-6 py-4 border-b border-slate-800 flex items-center justify-between'>
             <h2 className='text-lg font-bold text-white'>
@@ -153,7 +153,10 @@ export const AssetModal: React.FC<AssetModalProps> = ({
           {/* Form */}
           <form onSubmit={handleSubmit} className='p-6 space-y-4'>
             {errorMessage && (
-              <div className='p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400 font-medium'>
+              <div
+                role='alert'
+                className='p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400 font-medium'
+              >
                 ⚠️ {errorMessage}
               </div>
             )}
@@ -208,7 +211,6 @@ export const AssetModal: React.FC<AssetModalProps> = ({
             </div>
 
             <div className='grid grid-cols-2 gap-4'>
-              
               {/* Categoría */}
               <div>
                 <div className='flex items-center justify-between mb-1'>

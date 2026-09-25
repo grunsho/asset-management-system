@@ -99,6 +99,16 @@ Ejecuta las migraciones y el seeder dentro de `apps/api`:
 `npx prisma migrate dev`  
 `npx prisma db seed`
 
+### 5. Pruebas E2E
+
+Con PostgreSQL iniciado, migraciones aplicadas y seed ejecutado, instala Chromium y ejecuta el flujo de login y administración:
+
+`npm run test:e2e:install`
+
+`npm run test:e2e`
+
+La prueba usa la cuenta local `admin@ams.com` / `Admin123!`.
+
 ---
 
 ## 💻 Ejecución en Desarrollo

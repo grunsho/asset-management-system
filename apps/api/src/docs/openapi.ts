@@ -30,6 +30,7 @@ export const openapiDocument = {
     { name: 'Assets', description: 'Gestión y auditoría de activos' },
     { name: 'Reports', description: 'Exportación de inventario' },
     { name: 'Catalogs', description: 'Categorías y ubicaciones' },
+    { name: 'Users', description: 'Administración de usuarios y roles' },
   ],
   components: {
     securitySchemes: {
@@ -432,6 +433,81 @@ export const openapiDocument = {
         summary: 'Crear ubicación',
         security: [{ bearerAuth: [] }],
         responses: { 201: { description: 'Ubicación creada' } },
+      },
+    },
+    '/users': {
+      get: {
+        tags: ['Users'],
+        summary: 'Listar usuarios',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'Usuarios sin credenciales' },
+          403: { description: 'Se requiere USER_MANAGE' },
+        },
+      },
+      post: {
+        tags: ['Users'],
+        summary: 'Crear usuario',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: [
+                  'email',
+                  'firstName',
+                  'lastName',
+                  'password',
+                  'roleId',
+                ],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  firstName: { type: 'string', maxLength: 100 },
+                  lastName: { type: 'string', maxLength: 100 },
+                  password: { type: 'string', minLength: 12, maxLength: 128 },
+                  roleId: { type: 'string', format: 'uuid' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: 'Usuario creado' },
+          409: { description: 'El correo ya está en uso' },
+        },
+      },
+    },
+    '/users/roles': {
+      get: {
+        tags: ['Users'],
+        summary: 'Listar roles disponibles',
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: 'Roles del sistema' } },
+      },
+    },
+    '/users/{id}': {
+      patch: {
+        tags: ['Users'],
+        summary: 'Actualizar datos, rol o estado de un usuario',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        responses: {
+          200: { description: 'Usuario actualizado' },
+          404: { description: 'Usuario no encontrado' },
+          409: {
+            description:
+              'Cambio no permitido por protección de administradores',
+          },
+        },
       },
     },
   },

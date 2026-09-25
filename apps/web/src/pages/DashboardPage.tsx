@@ -5,8 +5,10 @@ import { useAuth } from '../context/AuthContext'
 import { AssetModal } from '../components/AssetModal'
 import { AssetAuditModal } from '../components/AssetAuditModal'
 import { ChangeStatusModal } from '../components/ChangeStatusModal'
-import { Download, History, Trash2 } from 'lucide-react'
+import { Download, History, RefreshCw, Trash2 } from 'lucide-react'
 import { AssetCharts } from '../components/AssetCharts'
+import { Link } from 'react-router-dom'
+import { UserRoundCog } from 'lucide-react'
 
 // Interfaces alineadas con el esquema Prisma / REST API
 export interface Category {
@@ -59,10 +61,14 @@ export const DashboardPage: React.FC = () => {
     byLocation: [],
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [assetsError, setAssetsError] = useState('')
+  const [metricsError, setMetricsError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<AssetStatus | ''>('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [page, setPage] = useState(1)
@@ -82,6 +88,8 @@ export const DashboardPage: React.FC = () => {
 
   // Cargar lista inicial de activos
   const fetchAssets = async () => {
+    setIsLoading(true)
+    setAssetsError('')
     try {
       const response = await api.get('/assets', {
         params: {
@@ -91,6 +99,8 @@ export const DashboardPage: React.FC = () => {
           status: statusFilter || undefined,
           categoryId: categoryFilter || undefined,
           locationId: locationFilter || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
         },
       })
       const data = response.data
@@ -103,21 +113,21 @@ export const DashboardPage: React.FC = () => {
       } else if (Array.isArray(data?.assets)) {
         setAssets(data.assets)
       } else {
-        console.warn(
-          'La respuesta de /assets no contiene un Array válido:',
-          data,
-        )
-        setAssets([])
+        setAssetsError('La respuesta de activos tiene un formato inesperado.')
       }
     } catch (error) {
       console.error('Error al cargar activos:', error)
-      setAssets([])
+      setAssetsError(
+        (error as any).response?.data?.error ||
+          'No se pudieron cargar los activos. Comprueba la conexión e inténtalo de nuevo.',
+      )
     } finally {
       setIsLoading(false)
     }
   }
 
   const fetchMetrics = async () => {
+    setMetricsError('')
     try {
       const response = await api.get('/reports/metrics', {
         params: {
@@ -125,18 +135,33 @@ export const DashboardPage: React.FC = () => {
           status: statusFilter || undefined,
           categoryId: categoryFilter || undefined,
           locationId: locationFilter || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
         },
       })
       setMetrics(response.data)
     } catch (error) {
       console.error('Error al cargar métricas:', error)
+      setMetricsError('No se pudieron actualizar las métricas.')
     }
   }
 
   useEffect(() => {
     void fetchAssets()
     void fetchMetrics()
-  }, [page, searchTerm, statusFilter, categoryFilter, locationFilter])
+  }, [
+    page,
+    searchTerm,
+    statusFilter,
+    categoryFilter,
+    locationFilter,
+    fromDate,
+    toDate,
+  ])
+
+  const refreshInventory = async () => {
+    await Promise.all([fetchAssets(), fetchMetrics()])
+  }
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
@@ -201,7 +226,7 @@ export const DashboardPage: React.FC = () => {
     try {
       setActionError('')
       await api.delete(`/assets/${asset.id}`)
-      await fetchAssets()
+      await refreshInventory()
     } catch (error: any) {
       setActionError(
         error.response?.data?.error || 'No se pudo eliminar el activo',
@@ -232,6 +257,8 @@ export const DashboardPage: React.FC = () => {
           status: statusFilter || undefined,
           categoryId: categoryFilter || undefined,
           locationId: locationFilter || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
         },
         responseType: 'blob',
       })
@@ -245,6 +272,10 @@ export const DashboardPage: React.FC = () => {
       a.remove()
     } catch (error) {
       console.error('Error al exportar CSV:', error)
+      setActionError(
+        (error as any).response?.data?.error ||
+          'No se pudo exportar el inventario. Inténtalo de nuevo.',
+      )
     }
   }
 
@@ -267,6 +298,14 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className='flex items-center gap-4'>
+          {hasPermission('USER_MANAGE') && (
+            <Link
+              to='/admin/users'
+              className='inline-flex items-center gap-2 text-xs text-slate-300 hover:text-white'
+            >
+              <UserRoundCog className='h-4 w-4' /> Usuarios
+            </Link>
+          )}
           <div className='text-right'>
             <p className='text-sm font-medium text-white'>
               {user?.firstName} {user?.lastName}
@@ -296,6 +335,21 @@ export const DashboardPage: React.FC = () => {
             Exportar CSV
           </button>
         </div>
+        {metricsError && (
+          <div
+            role='alert'
+            className='mb-4 flex items-center justify-between gap-4 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-300'
+          >
+            <span>{metricsError}</span>
+            <button
+              onClick={() => void fetchMetrics()}
+              aria-label='Reintentar carga de métricas'
+              className='inline-flex items-center gap-2 font-medium hover:text-white'
+            >
+              <RefreshCw className='h-3.5 w-3.5' /> Reintentar
+            </button>
+          </div>
+        )}
         {/* KPI Cards */}
         <div className='grid grid-cols-1 md:grid-cols-5 gap-4 mt-6 mb-6'>
           <div className='bg-slate-900 border border-slate-800 rounded-xl p-4'>
@@ -399,6 +453,32 @@ export const DashboardPage: React.FC = () => {
                 </option>
               ))}
             </select>
+            <label className='flex flex-col gap-1 text-[10px] font-medium uppercase text-slate-400'>
+              Desde
+              <input
+                type='date'
+                aria-label='Fecha desde'
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value)
+                  setPage(1)
+                }}
+                className='w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm normal-case text-white focus:border-sky-500 focus:outline-none'
+              />
+            </label>
+            <label className='flex flex-col gap-1 text-[10px] font-medium uppercase text-slate-400'>
+              Hasta
+              <input
+                type='date'
+                aria-label='Fecha hasta'
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value)
+                  setPage(1)
+                }}
+                className='w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm normal-case text-white focus:border-sky-500 focus:outline-none'
+              />
+            </label>
           </div>
 
           {hasPermission('ASSET_CREATE') && (
@@ -416,12 +496,34 @@ export const DashboardPage: React.FC = () => {
             {actionError}
           </div>
         )}
+        {assetsError && (
+          <div
+            role='alert'
+            className='mb-4 flex items-center justify-between gap-4 rounded-lg border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-300'
+          >
+            <span>{assetsError}</span>
+            <button
+              onClick={() => void fetchAssets()}
+              aria-label='Reintentar carga de activos'
+              className='inline-flex items-center gap-2 font-medium hover:text-white'
+            >
+              <RefreshCw className='h-3.5 w-3.5' /> Reintentar
+            </button>
+          </div>
+        )}
 
         {/* Table */}
         <div className='bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl'>
-          {isLoading ? (
-            <div className='p-12 text-center text-slate-400 font-mono text-sm'>
+          {isLoading && safeAssets.length === 0 ? (
+            <div
+              role='status'
+              className='p-12 text-center text-slate-400 font-mono text-sm'
+            >
               Cargando activos...
+            </div>
+          ) : assetsError && safeAssets.length === 0 ? (
+            <div className='p-12 text-center text-slate-400 text-sm'>
+              No hay datos para mostrar hasta recuperar la conexión.
             </div>
           ) : (
             <table className='w-full text-left border-collapse'>
@@ -510,6 +612,15 @@ export const DashboardPage: React.FC = () => {
             </table>
           )}
         </div>
+        {isLoading && safeAssets.length > 0 && (
+          <p
+            role='status'
+            className='py-2 text-xs text-slate-400'
+            aria-live='polite'
+          >
+            Actualizando inventario...
+          </p>
+        )}
 
         <div className='flex items-center justify-between py-4 text-xs text-slate-400'>
           <span>
@@ -539,14 +650,14 @@ export const DashboardPage: React.FC = () => {
       <AssetModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchAssets}
+        onSuccess={refreshInventory}
         assetToEdit={selectedAsset}
       />
       <ChangeStatusModal
         isOpen={!!statusAsset}
         asset={statusAsset}
         onClose={() => setStatusAsset(null)}
-        onSuccess={fetchAssets}
+        onSuccess={refreshInventory}
       />
       <AssetAuditModal
         isOpen={!!auditAsset}
